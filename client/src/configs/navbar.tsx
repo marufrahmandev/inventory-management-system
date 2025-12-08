@@ -5,6 +5,11 @@ import {
   FolderIcon,
   HomeIcon,
   UserGroupIcon,
+  Squares2X2Icon,
+  ShoppingBagIcon,
+  BuildingStorefrontIcon,
+  Cog6ToothIcon,
+  CreditCardIcon 
 } from "@heroicons/react/24/outline";
 import type { NavItem } from "../types";
 
@@ -18,27 +23,48 @@ export const user = {
 export const navigation: NavItem[] = [
   { name: "Dashboard", href: "#", icon: HomeIcon, current: true },
   {
-    name: "Team",
+    name: "Catalog",
     href: "#",
-    icon: UserGroupIcon,
+    icon: Squares2X2Icon, 
     children: [
-      { name: "Overview", href: "#" },
-      { name: "Members", href: "#" },
-      { name: "Settings", href: "#" },
+      { name: "Categories", href: "/categories" },
+      { name: "Products", href: "/products" },
+      { name: "Product Variants", href: "/product-variants" },
+      { name: "Brands", href: "/brands" },
+      { name: "Units of Measure", href: "/units-of-measure" },
     ],
   },
   {
-    name: "Projects",
+    name: "Purchase",
     href: "#",
-    icon: FolderIcon,
+    icon: ShoppingBagIcon,
     children: [
-      { name: "Active", href: "#" },
-      { name: "Archived", href: "#" },
+      { name: "Purchase Orders", href: "/purchase-orders" },
+      { name: "Stock In", href: "/stock-in" },
     ],
   },
-  { name: "Calendar", href: "#", icon: CalendarDaysIcon },
-  { name: "Documents", href: "#", icon: DocumentDuplicateIcon },
-  { name: "Reports", href: "#", icon: ChartPieIcon },
+  {
+    name: "Sales",
+    href: "#",
+    icon: CreditCardIcon,
+    children: [
+      { name: "Sales Orders", href: "/sales-orders" },
+      { name: "Invoices", href: "/invoices" },
+    ],
+  },
+
+  { name: "Suppliers", href: "/suppliers", icon: BuildingStorefrontIcon },
+  { name: "Customers", href: "/customers", icon: UserGroupIcon },
+  { name: "Reports", href: "/reports", icon: ChartPieIcon },
+  {
+    name: "Settings",
+    href: "#",
+    icon: Cog6ToothIcon,
+    children: [
+      { name: "Profile", href: "/profile" },
+      { name: "Logout", href: "/logout" },
+    ],
+  },
 ];
 
 export function classNames(...classes: string[]) {

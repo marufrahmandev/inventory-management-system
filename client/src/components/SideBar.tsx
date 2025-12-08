@@ -2,7 +2,7 @@ import { ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon } from "@h
 import { user, navigation } from "../configs/navbar";
 import type { NavItem, NavChild } from "../types";
 import { classNames } from "../configs/navbar";
-
+import { useNavigate } from "react-router";
 export default function SideBar({
   sidebarOpen,
   setSidebarOpen,
@@ -14,6 +14,7 @@ export default function SideBar({
   openParent: string | null;
   setOpenParent: (openParent: string | null) => void;
 }) {
+  const navigate = useNavigate();
   return (
     <>
       {sidebarOpen ? (
@@ -47,19 +48,22 @@ export default function SideBar({
                 const isOpen = openParent === item.name;
 
                 return (
-                  <div key={item.name}>
+                  <div key={item.name} className="group">
                     <button
                       type="button"
                       onClick={() => {
                         if (hasChildren) {
                           setOpenParent(isOpen ? null : item.name);
+                        }else{
+                          navigate(item.href);
                         }
                       }}
+                     
                       className={classNames(
                         item.current
                           ? "bg-indigo-50 text-indigo-700"
                           : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
-                        "flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm font-medium"
+                        "flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm font-medium cursor-pointer group-has-[a]:cursor-pointer"
                       )}
                     >
                       <Icon
@@ -93,7 +97,10 @@ export default function SideBar({
                         {item.children!.map((child: NavChild) => (
                           <a
                             key={child.name}
-                            href={child.href}
+                            href="javascript:void(0)"
+                            onClick={() => {
+                              navigate(child.href);
+                            }}
                             className="block rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                           >
                             {child.name}

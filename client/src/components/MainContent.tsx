@@ -1,13 +1,13 @@
 import React from "react";
 import { classNames } from "../configs/navbar";
-import { Outlet, useOutletContext } from "react-router";
-export default function MainContent({ sidebarOpen, children, title }: { sidebarOpen: boolean, children: React.ReactNode, title: string   }) {
+export default function MainContent({ sidebarOpen, children, pageTitle }: { sidebarOpen: boolean, children: React.ReactNode, pageTitle: string   }) {
+
   return (
     <div className="flex-1 bg-gray-100">
       <header className="relative hidden bg-white shadow-sm md:block">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            {title}
+            {pageTitle}
           </h1>
         </div>
       </header>
