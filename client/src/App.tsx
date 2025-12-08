@@ -11,6 +11,7 @@ import {
   ChartPieIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
 
 const user = {
@@ -184,10 +185,7 @@ export default function App() {
 
             {/* Sidebar user section */}
             <div className="mt-8 border-t border-gray-200 pt-6">
-              <button
-                type="button"
-                className="flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50"
-              >
+              <div className="flex items-center gap-x-3 rounded-xl bg-gray-50 px-3 py-2 text-sm">
                 <img
                   alt={user.name}
                   src={user.imageUrl}
@@ -195,9 +193,16 @@ export default function App() {
                 />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">View profile</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
-              </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full bg-red-50 p-1.5 text-red-600 shadow-sm ring-1 ring-red-200 hover:bg-red-100"
+                >
+                  <span className="sr-only">Sign out</span>
+                  <ArrowRightOnRectangleIcon aria-hidden="true" className="size-4" />
+                </button>
+              </div>
             </div>
           </aside>
         </div>
@@ -294,10 +299,7 @@ export default function App() {
 
             {/* Sidebar user section at the bottom */}
             <div className="mt-8 border-t border-gray-200 pt-6">
-              <button
-                type="button"
-                className="flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50"
-              >
+              <div className="flex items-center gap-x-3 rounded-xl bg-gray-50 px-3 py-2 text-sm">
                 <img
                   alt={user.name}
                   src={user.imageUrl}
@@ -305,9 +307,16 @@ export default function App() {
                 />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">View profile</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
-              </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full bg-red-50 p-1.5 text-red-600 shadow-sm ring-1 ring-red-200 hover:bg-red-100"
+                >
+                  <span className="sr-only">Sign out</span>
+                  <ArrowRightOnRectangleIcon aria-hidden="true" className="size-4" />
+                </button>
+              </div>
             </div>
           </aside>
         ) : (
@@ -353,8 +362,8 @@ export default function App() {
           <main>
             <div
               className={classNames(
-                'mx-auto px-4 py-6 sm:px-6',
-                sidebarOpen ? 'max-w-7xl lg:px-8' : 'max-w-none lg:px-6',
+                'mx-auto px-3 py-6 sm:px-4',
+                sidebarOpen ? 'max-w-7xl lg:px-6' : 'max-w-none lg:px-4',
               )}
             >
               <div className="h-[32rem] rounded-2xl border border-gray-200 bg-white">
