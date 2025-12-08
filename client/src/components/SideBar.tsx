@@ -2,7 +2,7 @@ import { ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon } from "@h
 import { user, navigation } from "../configs/navbar";
 import type { NavItem, NavChild } from "../types";
 import { classNames } from "../configs/navbar";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 export default function SideBar({
   sidebarOpen,
   setSidebarOpen,
@@ -15,6 +15,9 @@ export default function SideBar({
   setOpenParent: (openParent: string | null) => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  console.log(location.pathname);
+  const activeClass = "bg-indigo-50 text-indigo-700";
   return (
     <>
       {sidebarOpen ? (
@@ -60,8 +63,8 @@ export default function SideBar({
                       }}
                      
                       className={classNames(
-                        item.current
-                          ? "bg-indigo-50 text-indigo-700"
+                         item.href === location.pathname || item.children?.some((child: NavChild) => child.href === location.pathname)  
+                          ? activeClass
                           : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
                         "flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm font-medium cursor-pointer group-has-[a]:cursor-pointer"
                       )}
@@ -69,7 +72,7 @@ export default function SideBar({
                       <Icon
                         aria-hidden="true"
                         className={classNames(
-                          item.current ? "text-indigo-600" : "text-gray-400",
+                          item.children?.some((child: NavChild) => child.href === location.pathname) ? "text-indigo-600" : "text-gray-400",
                           "size-5"
                         )}
                       />
@@ -101,7 +104,9 @@ export default function SideBar({
                             onClick={() => {
                               navigate(child.href);
                             }}
-                            className="block rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                            className={
+                                 `${child.href === location.pathname ? activeClass : ""} block rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900`
+                            }
                           >
                             {child.name}
                           </a>

@@ -11,7 +11,7 @@ export default function DashboardLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [openParent, setOpenParent] = useState<string | null>(null);
   const context = {
-    setPageTitle,
+    setPageTitle
   };
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <MobileTopBarWithHamburger setMobileSidebarOpen={setMobileSidebarOpen} />
+      <MobileTopBarWithHamburger setMobileSidebarOpen={setMobileSidebarOpen} pageTitle={pageTitle} />
 
       {/* Mobile sidebar overlay */}
       <MobileSideBarOverlay

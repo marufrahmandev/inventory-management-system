@@ -6,7 +6,7 @@ import {
 import { user, navigation } from "../configs/navbar";
 import type { NavItem, NavChild } from "../types";
 import { classNames } from "../configs/navbar";
-
+import { useLocation, useNavigate } from "react-router";
 export default function MobileSideBarOverlay({
   mobileSidebarOpen,
   setMobileSidebarOpen,
@@ -18,6 +18,10 @@ export default function MobileSideBarOverlay({
   openParent: string | null;
   setOpenParent: (openParent: string | null) => void;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  console.log(location.pathname);
+  const activeClass = "bg-indigo-50 text-indigo-700";
   return (
     <>
       {mobileSidebarOpen && (
@@ -64,12 +68,16 @@ export default function MobileSideBarOverlay({
                       <button
                         type="button"
                         onClick={() => {
+                          setMobileSidebarOpen(false);
                           if (hasChildren) {
                             setOpenParent(isOpen ? null : item.name);
+                          } 
+                          else{
+                            navigate(item.href);
                           }
                         }}
                         className={classNames(
-                          item.current
+                          item.href === location.pathname || item.children?.some((child: NavChild) => child.href === location.pathname)
                             ? "bg-indigo-50 text-indigo-700"
                             : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
                           "flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm font-medium"
@@ -78,7 +86,7 @@ export default function MobileSideBarOverlay({
                         <Icon
                           aria-hidden="true"
                           className={classNames(
-                            item.current ? "text-indigo-600" : "text-gray-400",
+                            item.href === location.pathname || item.children?.some((child: NavChild) => child.href === location.pathname) ? "text-indigo-600" : "text-gray-400",
                             "size-5"
                           )}
                         />
@@ -106,8 +114,15 @@ export default function MobileSideBarOverlay({
                           {item.children!.map((child: NavChild) => (
                             <a
                               key={child.name}
-                              href={child.href}
-                              className="block rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                              href="javascript:void(0)"
+                              onClick={() => {
+                                setMobileSidebarOpen(false);
+                                navigate(child.href);
+                              }}
+                              className={classNames(
+                                `${child.href === location.pathname ? activeClass  : ""} text-gray-500 hover:bg-gray-50 hover:text-gray-900,
+                                block rounded-md px-3 py-1.5 text-sm`
+                              )}
                             >
                               {child.name}
                             </a>

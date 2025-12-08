@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run vite\" \"npm run json-server\" ",
+    "vite": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "json-server": "npx json-server --watch db.json --port 3000"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -17,6 +19,7 @@
     "@tanstack/match-sorter-utils": "^8.19.4",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.13.2",
+    "json-server": "^1.0.0-beta.3",
     "lucide-react": "^0.556.0",
     "react": "^19.2.0",
     "react-datepicker": "^8.10.0",

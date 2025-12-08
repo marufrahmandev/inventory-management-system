@@ -14,11 +14,11 @@ export default function MainContent({ sidebarOpen, children, pageTitle }: { side
       <main>
         <div
           className={classNames(
-            "mx-auto px-3 py-6 sm:px-4",
+            "sm:flex min-h-[600px] mx-auto px-3 py-6 sm:px-4",
             sidebarOpen ? "max-w-7xl lg:px-6" : "max-w-none lg:px-4"
           )}
         >
-          <div className="h-[32rem] rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="min-h-[inherit] rounded-2xl border border-gray-200 bg-white p-4 sm:flex-grow">
             {children}
           </div>
         </div>

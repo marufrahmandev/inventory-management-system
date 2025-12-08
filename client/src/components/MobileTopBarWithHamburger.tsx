@@ -1,10 +1,11 @@
 import {
   Bars3Icon,
 } from '@heroicons/react/24/outline'    
+import { useEffect } from 'react';
+import { useOutletContext } from 'react-router';
 
 
-export default function MobileTopBarWithHamburger({ setMobileSidebarOpen }: { setMobileSidebarOpen: (mobileSidebarOpen: boolean) => void }) {
-
+export default function MobileTopBarWithHamburger({ setMobileSidebarOpen, pageTitle }: { setMobileSidebarOpen: (mobileSidebarOpen: boolean) => void, pageTitle: string }) {
   return (
     <>
      {/* Mobile top bar with hamburger */}
@@ -13,7 +14,7 @@ export default function MobileTopBarWithHamburger({ setMobileSidebarOpen }: { se
           <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-600">
             <span className="text-xl font-semibold text-white">~</span>
           </div>
-          <span className="text-lg font-semibold text-gray-900">Dashboard</span>
+          <span className="text-lg font-semibold text-gray-900">{pageTitle}</span>
         </div>
         <button
           type="button"

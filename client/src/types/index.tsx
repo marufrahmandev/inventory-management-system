@@ -12,3 +12,17 @@ export type NavItem = {
   current?: boolean
   children?: NavChild[]
 }
+
+export type Category = {
+  id: string
+  name: string
+}
+
+export type Product = {
+  id: string
+  name: string
+  categoryId: string
+  price: number
+  quantity: number
+  description: string
+};
