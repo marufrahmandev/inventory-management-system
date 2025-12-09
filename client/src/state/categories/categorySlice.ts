@@ -21,17 +21,33 @@ export const categoriesApiSlice = createApi({
 
             return result as { data: Category[] };
         },
-
+        providesTags: ['Categories'],
 
       }),
 
-      addCategory: builder.mutation({
-        query: (category) => ({
-          url: "/categories",
-          method: "POST",
-          body: category,
-        }),
-      }),
+      // addCategory: builder.mutation({
+      //   query: (category) => ({
+      //     url: "/categories",
+      //     method: "POST",
+      //     body: category,
+      //   }),
+      // }),
+      addCategory: builder.mutation<any, {file: File, name: string, description: string, parent_category: string | null} >({
+        query: ({ file, name, description, parent_category }  ) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('name', name);
+          formData.append('description', description);
+          formData.append('parent_category', parent_category || '');
+          return {
+            url: '/categories',
+            method: 'POST',
+            body: formData,
+            formData: true, // This explicitly tells RTK Query to handle it as FormData
+          };
+        },
+        invalidatesTags: ['Categories'],
+    }),
 
       updateCategory: builder.mutation({
         query: (category) => {

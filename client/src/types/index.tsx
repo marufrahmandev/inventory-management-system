@@ -15,7 +15,10 @@ export type NavItem = {
 
 export type Category = {
   id: string
-  name: string
+  name: string,
+  description: string,
+  parent_category: string | null,
+  category_image: string | null,
 }
 
 export type Product = {

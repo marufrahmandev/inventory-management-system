@@ -115,14 +115,6 @@
       padding: 10px 0px;
     }
 
-    input.global-filter-input {
-      padding: 10px !important;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      outline: none;
-      padding-left: 30px;
-    }
-
     select {
       padding: 10px;
     }
@@ -150,11 +142,33 @@
     }
 
     .select-filter-container {
-    display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 5px;
-    
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
     }
+  }
+
+  .action_container {
+    margin: 20px 0px;
+    padding: 10px 20px;
+    input.global-filter-input {
+      padding: 10px !important;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      outline: none;
+      padding-left: 30px;
+    }
+    button {
+      padding: 10px 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      outline: none;
+      cursor: pointer;
+    }
+  }
+
+  .action_btn {
+    @apply inline-flex items-center gap-2 justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 cursor-pointer;
   }
 }

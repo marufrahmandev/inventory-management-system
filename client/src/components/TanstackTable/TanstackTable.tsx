@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -10,7 +10,6 @@ import {
   type PaginationState,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import DebouncedInput from "./DebouncedInput";
 import TableSkeleton from "./TableSkeleton";
 
 function TanstackTable({
@@ -19,17 +18,19 @@ function TanstackTable({
   isLoading,
   isError,
   error,
+  globalFilter
 }: {
   columns: ColumnDef<any>[];
   data: any[];
   isLoading: boolean;
   isError: boolean;
   error: any;
+  globalFilter: string;
 }) {
-  console.log("data in TanstackTable", data);
+
 
   const [rowSelection, setRowSelection] = useState({});
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [, setGlobalFilter] = useState(globalFilter);
 
   console.log(rowSelection);
 
@@ -39,6 +40,11 @@ function TanstackTable({
   });
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+
+  useCallback(() => {
+    setGlobalFilter(globalFilter);
+  }, [globalFilter]);
 
   const table = useReactTable({
     defaultColumn: {
@@ -87,16 +93,14 @@ function TanstackTable({
       <TableSkeleton rows={data.length || 20} columns={columns.length || 4} />
     );
 
+
+
+
+
+
   return (
     <div id="table-container" className="space-y-4">
-      <div>
-        <DebouncedInput
-          value={globalFilter ?? ""}
-          onChange={(value) => setGlobalFilter(String(value))}
-          className="global-filter-input"
-          placeholder="Search..."
-        />
-      </div>
+
       <table className="table" style={{ width: `${table.getTotalSize()}px` }}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
