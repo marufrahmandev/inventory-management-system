@@ -1,0 +1,5 @@
+{
+  "watch": ["index.js", "category.js"],
+  "ignore": ["db.json", "uploads/*"],
+  "ext": "js"
+}

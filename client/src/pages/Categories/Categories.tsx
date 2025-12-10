@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import IndeterminateCheckbox from "../../components/TanstackTable/IndeterminateCheckbox";
 import { useDeleteCategoryMutation, useGetCategoriesQuery } from "../../state/categories/categorySlice";
 import DebouncedInput from "../../components/TanstackTable/DebouncedInput";
-import { Pencil, Plus, Trash } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash } from 'lucide-react';
 import { useNavigate } from "react-router";
 import { Bounce, ToastContainer, toast } from 'react-toastify';
 
@@ -52,15 +52,34 @@ function Categories() {
       size: 500,
     },
     {
+      accessorKey: "optimizedImageUrl",
+      header: "Image",
+      cell: (row) => row.getValue()?<img src={row.getValue() as string} alt="Category Image" className="w-10 h-10 rounded-sm" />:<div className="w-10 h-10 rounded-sm bg-gray-200"></div>,
+      enableColumnFilter: false,
+      filterFn: "includesString",
+      size: 100,
+    },
+    {
       accessorKey: "action",
       header: "Actions",
       cell: (row) => (
         <div className="flex gap-4">
-        <button  onClick={() => navigate(`/categories/edit/${row.row.original.id}`)} >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/categories/edit/${row.row.original.id}`);
+          }}
+        >
           <Pencil className="w-4 h-4 text-blue-500" aria-label="Edit" />
         </button>
-        <button  onClick={() => handleDelete(row.row.original.id as string)}> 
-            <Trash className={`w-4 h-4 text-red-500 ${isDeleting ? "animate-pulse" : ""}`} aria-label="Delete" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(row.row.original.id as string);
+          }}
+        > 
+        {isDeleting ? ( <><Loader2 className="w-4 h-4 text-red-500 animate-spin" />  Deleting... </>) : (<Trash className={`w-4 h-4 text-red-500 `} aria-label="Delete" />)}
+            
           </button>
         </div>
       ),
@@ -69,6 +88,7 @@ function Categories() {
   ];
 
   const handleDelete = async (id: string) => {
+   
     setIsDeleting(true);
     console.log("id in handleDelete", id);
     const response = await deleteCategory({ id });
@@ -138,6 +158,8 @@ function Categories() {
 
       </div>
 
+    
+ 
       <TanstackTable
         columns={columns}
         data={data}

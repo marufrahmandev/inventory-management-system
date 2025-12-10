@@ -18,7 +18,7 @@ function TanstackTable({
   isLoading,
   isError,
   error,
-  globalFilter
+  globalFilter,
 }: {
   columns: ColumnDef<any>[];
   data: any[];
@@ -142,25 +142,33 @@ function TanstackTable({
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              className={row.getIsSelected() ? "selected" : undefined}
-              onClick={row.getToggleSelectedHandler()}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  style={{
-                    width: `${cell.column.getSize()}px`,
-                    backgroundColor: "transparent",
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
+          {table.getRowModel().rows.length > 0 ? (
+            table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                className={row.getIsSelected() ? "selected" : undefined}
+                onClick={row.getToggleSelectedHandler()}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    style={{
+                      width: `${cell.column.getSize()}px`,
+                      backgroundColor: "transparent",
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={columns.length} className="text-center p-4 text-gray-500">
+                No categories found
+              </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
 
