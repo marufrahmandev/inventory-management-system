@@ -12,6 +12,7 @@ import FileInput from "../../elements/FileInput";
 import RadioGroup from "../../elements/RadioGroup";
 import { useAddCategoryMutation } from "../../state/categories/categorySlice";
 import Checkbox from "../../elements/Checkbox";
+import { Bounce, ToastContainer, toast } from 'react-toastify';
 
 const baseSchema = z.object({
   category_name: z
@@ -25,21 +26,41 @@ const baseSchema = z.object({
     .min(1, { message: "Required" })
     .min(2, { message: "Minimum 2 characters required" }),
   parent_category: z.string().trim(),
-  category_image: z.string().optional(),
+  category_image: z.preprocess(
+    (val) => {
+      console.log("category_image", val);
+      if (!val) return null;
+      if (val instanceof FileList) {
+        console.log("Instancs of FileList");
+        const file = val.item(0);
+        return file ?? null;
+      }
+      if (val instanceof File) {
+        console.log("Instancs of File");
+        return val;
+      }
+      return null;
+    },
+    z
+      .instanceof(File)
+      .nullable()
+      .refine((file) => file !== null, { message: "Required" })
+  ),
+  //category_image: z.instanceof(File).optional().nullable(), //required for edit
   // Treat empty string / null as "no value" so the field can truly be optional
   // gender: z.preprocess(
   //   (val) => (val === "" || val === null ? undefined : val),
   //   z.string().optional()
   // ),
-  gender: z.preprocess(
-    (val) => (val === "" || val === null ? "" : val),
-    z.string().min(1, { message: "Required" })
-  ),
-  // Checkbox is stored as boolean by react-hook-form
-  terms: z.boolean().optional(),
+  // gender: z.preprocess(
+  //   (val) => (val === "" || val === null ? "" : val),
+  //   z.string().min(1, { message: "Required" })
+  // ),
+  // terms: z.boolean().optional(),
 });
 
 function AddCategory() {
+
   const [
     addCategory,
     isAddCategoryLoading,
@@ -75,58 +96,79 @@ function AddCategory() {
       category_name: "",
       category_description: "",
       parent_category: "",
-      category_image: "",
+      category_image: null,
       gender: "",
       terms: false,
     },
-    mode: "onBlur",
+    mode: "all",
     criteriaMode: "all",
-    //resolver: zodResolver(baseSchema),
     resolver: async (data: any, context: any, options: any) => {
       return zodResolver(baseSchema)(data, context, options);
     },
   });
 
-  const [isFormSubmit, setFormSubmit] = useState(false);
+  console.log("isSubmitting: ", isSubmitting);
 
-  const [file, setFile] = useState<File | null>(null);
 
   const navigate = useNavigate();
 
+  const [isFormsubmitting, setIsFormsubmitting] = useState(false);
+
+
   useEffect(() => {
+       
     setPageTitle("Add Category");
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.files?.[0]);
-    setFile(e.target.files?.[0]);
-  };
-
   const onSubmit = async (data: any) => {
+    console.log("isSubmitting>>>>BEFORE SUBMIT", isSubmitting);
+
+    setIsFormsubmitting(true);
     console.log("===========form submitted============");
-    console.log(data);
-    setFormSubmit(true);
-    //await new Promise((resolve) => setTimeout(resolve, 2000));
-    // setFormSubmit(false);
-    // try {
-    //   const response = await addCategory({
-    //     name: data.category_name,
-    //     description: data.category_description,
-    //     parent_category: data.parent_category,
-    //     file: file as unknown as File,
-    //   });
-    //   console.log(response);
-    //   navigate("/categories");
-    // } catch (error) {
-    //   console.log(error);
-    // }
+
+    
+    const response = await addCategory({
+      name: data.category_name,
+      description: data.category_description,
+      parent_category: data.parent_category,
+      file: data.category_image,
+    });
+    console.log("response", response);
+
+   
+    if(!response.error){
+      toast.success('Category added successfully', {
+        position: "top-center",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
+     return setTimeout(() => {
+         setIsFormsubmitting(false);
+        navigate("/categories");
+      }, 1500);
+    }else{
+      setIsFormsubmitting(false);
+      return toast.error('Something went wrong', {
+        position: "top-center",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
+    }
+
   };
 
-  //   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-  //     e.preventDefault();
-  //     console.log("Form submitted");
-  //     navigate("/categories");
-  //   };
 
   return (
     <div>
@@ -146,32 +188,10 @@ function AddCategory() {
           encType="multipart/form-data"
         >
           <div className="flex flex-col gap-2 space-y-4">
-
-
-
-        <FileInput
-              accept="image/*"
-              label="Category Image"
-              onBlur={(e) => {
-                const file = e.target.files?.[0];
-                console.log(file);
-                if (file) {
-                  setValue("category_image", file?.name as unknown as string);
-                  trigger();
-                }
-              }}
-              onChange={(e) => {
-                handleFileChange(e);
-              }}
-              error={errors.category_image?.message}
-            />
-             
-
-
             <Input
               label="Category Name"
               required
-              error={errors.category_name?.message}
+              error={errors.category_name?.message as string}
               {...register("category_name")}
             />
             <Textarea
@@ -180,81 +200,42 @@ function AddCategory() {
               labelClassName="text-gray-900"
               inputClassName="text-gray-900"
               rows={5}
-              error={errors.category_description?.message}
+              error={errors.category_description?.message as string}
               {...register("category_description")}
             />
             <Select
               label="Parent Category"
-              required
-              error={errors.parent_category?.message}
+              error={errors.parent_category?.message as string}
               options={[
                 { value: "1", label: "Category 1" },
                 { value: "2", label: "Category 2" },
                 { value: "3", label: "Category 3" },
               ]}
-               {...register("parent_category")}
+              {...register("parent_category")}
             />
-           
 
-            <RadioGroup
-              label="Gender"
-              {...register("gender")}
-              defaultCheckedValue=""
-              options={[
-                  { label: "Male", value: "male" },
-                  { label: "Female", value: "female" },
-                  { label: "Other", value: "other" },
-              ]}
-              error={errors.gender?.message}
+            <FileInput
+              accept="image/*"
+              label="Category Image"
+              {...register("category_image")}
               required
-              />
-
-              <Checkbox
-                label="Terms and Conditions"
-                {...register("terms")}
-                defaultChecked={false}
-                error={errors.terms?.message}
-                required
-              />
-           
-
-            {/* <RadioGroup 
-            label="Gender"
-            defaultCheckedValue=""
-            name="gender"
-            onChange={(val) => console.log(val)}
-            options={[
-                { label: "Male", value: "male" },
-                { label: "Female", value: "female" },
-                { label: "Other", value: "other" },
-            ]}
-            error="Gender is required"
+              error={errors.category_image?.message as string}
             />
-            <FileInput    accept="image/*" label="Category Image" required error="Category Image is required" onChange={handleFileChange}/>           
-            <Input label="Category Name" required />
-            <Select
-              
-              label="Parent Category"
-              options={[
-                { value: "1", label: "Option 1" },
-                { value: "2", label: "Option 2" },
-                { value: "3", label: "Option 3" },
-              ]}
-            />
-            <Textarea label="Category Description" required rows={5} /> */}
           </div>
           <div className="flex justify-start gap-5 sm:max-w-[80%]">
-            <Button type="submit" className="mt-4 min-w-[150px]">
-              Submit
+            <Button type="submit" className="mt-4 min-w-[150px]" disabled={isFormsubmitting || isSubmitting || !isValid}>
+              {isFormsubmitting || isSubmitting ? "Submitting..." : "Submit"}
             </Button>
             <Button
               type="button"
               className="mt-4 min-w-[150px] bg-gray-500 text-white"
+              disabled={isFormsubmitting || isSubmitting  }
               onClick={() => navigate("/categories")}
             >
               Cancel
             </Button>
           </div>
+          <ToastContainer />
         </form>
       </div>
     </div>

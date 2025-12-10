@@ -46,3 +46,13 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
 );
 
 export default Checkbox;
+
+
+
+{/* <Checkbox
+                label="Terms and Conditions"
+                {...register("terms")}
+                defaultChecked={false}
+                error={errors.terms?.message}
+                required
+              /> */}

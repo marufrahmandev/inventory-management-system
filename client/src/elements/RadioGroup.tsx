@@ -83,3 +83,20 @@ const RadioGroup = forwardRef<HTMLInputElement, RadioGroupProps>(
 );
 
 export default RadioGroup;
+
+
+{/* <RadioGroup
+    label="Gender"
+    {...register("gender")}
+    defaultCheckedValue=""
+    options={[
+        { label: "Male", value: "male" },
+        { label: "Female", value: "female" },
+        { label: "Other", value: "other" },
+    ]}
+    error={errors.gender?.message}
+    required
+    /> 
+
+    
+*/}

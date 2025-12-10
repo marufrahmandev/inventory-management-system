@@ -6,14 +6,15 @@ interface ButtonProps {
   className?: string;
   onClick?: () => void;
   children: React.ReactNode;
+  disabled?: boolean;
 }
 
-function Button({ type = "button", className = "action_btn", onClick, children }: ButtonProps) { 
+function Button({ type = "button", className = "action_btn", onClick, children, disabled = false }: ButtonProps) { 
   return (
     <button type={type} className={classNames(
             "action_btn",
             className
-          )} onClick={onClick}>
+          )} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );
