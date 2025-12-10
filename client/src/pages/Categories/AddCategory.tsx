@@ -11,17 +11,41 @@ import Select from "../../elements/Select";
 import FileInput from "../../elements/FileInput";
 import RadioGroup from "../../elements/RadioGroup";
 import { useAddCategoryMutation } from "../../state/categories/categorySlice";
+import Checkbox from "../../elements/Checkbox";
 
 const baseSchema = z.object({
-  category_name: z.string().trim().min(1, { message: "Required" }).min(2, { message: "Minimum 2 characters required" }),
-  category_description: z.string().trim().min(1, { message: "Required" }).min(2, { message: "Minimum 2 characters required" }),
-  parent_category: z.string().trim().optional(),
+  category_name: z
+    .string()
+    .trim()
+    .min(1, { message: "Required" })
+    .min(2, { message: "Minimum 2 characters required" }),
+  category_description: z
+    .string()
+    .trim()
+    .min(1, { message: "Required" })
+    .min(2, { message: "Minimum 2 characters required" }),
+  parent_category: z.string().trim(),
   category_image: z.string().optional(),
+  // Treat empty string / null as "no value" so the field can truly be optional
+  // gender: z.preprocess(
+  //   (val) => (val === "" || val === null ? undefined : val),
+  //   z.string().optional()
+  // ),
+  gender: z.preprocess(
+    (val) => (val === "" || val === null ? "" : val),
+    z.string().min(1, { message: "Required" })
+  ),
+  // Checkbox is stored as boolean by react-hook-form
+  terms: z.boolean().optional(),
 });
 
 function AddCategory() {
-  
-  const [ addCategory, isAddCategoryLoading, isAddCategoryError, addCategoryError ] = useAddCategoryMutation({});
+  const [
+    addCategory,
+    isAddCategoryLoading,
+    isAddCategoryError,
+    addCategoryError,
+  ] = useAddCategoryMutation({});
 
   const { setPageTitle } = useOutletContext<{
     setPageTitle: (title: string) => void;
@@ -52,6 +76,8 @@ function AddCategory() {
       category_description: "",
       parent_category: "",
       category_image: "",
+      gender: "",
+      terms: false,
     },
     mode: "onBlur",
     criteriaMode: "all",
@@ -63,7 +89,7 @@ function AddCategory() {
 
   const [isFormSubmit, setFormSubmit] = useState(false);
 
-  const [ file, setFile ] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(null);
 
   const navigate = useNavigate();
 
@@ -81,20 +107,19 @@ function AddCategory() {
     console.log(data);
     setFormSubmit(true);
     //await new Promise((resolve) => setTimeout(resolve, 2000));
-    setFormSubmit(false);
-    try {
-        const response = await addCategory({
-                name: data.category_name,
-                description: data.category_description,
-                parent_category: data.parent_category,
-                file: file as unknown as File,
-        });
-        console.log(response);
-        navigate("/categories");    
-   } catch (error) {
-    console.log(error);
-   }
-  
+    // setFormSubmit(false);
+    // try {
+    //   const response = await addCategory({
+    //     name: data.category_name,
+    //     description: data.category_description,
+    //     parent_category: data.parent_category,
+    //     file: file as unknown as File,
+    //   });
+    //   console.log(response);
+    //   navigate("/categories");
+    // } catch (error) {
+    //   console.log(error);
+    // }
   };
 
   //   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -118,51 +143,19 @@ function AddCategory() {
           method="POST"
           onSubmit={handleSubmit(onSubmit)}
           className="space-y-10"
-        encType="multipart/form-data"
+          encType="multipart/form-data"
         >
           <div className="flex flex-col gap-2 space-y-4">
-            <Input
-              label="Category Name"
-              required
-              onBlur={(e) => {
-                setValue("category_name", e.target.value);
-                trigger();
-              }}
-              error={errors.category_name?.message}
-            />
-            <Textarea
-              label="Category Description"
-              required
-              rows={5}
-              onBlur={(e) => {
-                setValue("category_description", e.target.value);
-                trigger();
-              }}    
-              error={errors.category_description?.message}
-            />
-            <Select
-              label="Parent Category"
-              options={[
-                { value: "1", label: "Category 1" },
-                { value: "2", label: "Category 2" },
-                { value: "3", label: "Category 3" },
-              ]}
-              onBlur={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                console.log(e.target.value);
-                if(e.target.value) {
-                  setValue("parent_category", e.target.value as unknown as string);
-                  trigger();
-                }
-              }}
-              error={errors.parent_category?.message}
-            />
-            <FileInput
+
+
+
+        <FileInput
               accept="image/*"
               label="Category Image"
               onBlur={(e) => {
                 const file = e.target.files?.[0];
                 console.log(file);
-                if(file) {
+                if (file) {
                   setValue("category_image", file?.name as unknown as string);
                   trigger();
                 }
@@ -172,6 +165,59 @@ function AddCategory() {
               }}
               error={errors.category_image?.message}
             />
+             
+
+
+            <Input
+              label="Category Name"
+              required
+              error={errors.category_name?.message}
+              {...register("category_name")}
+            />
+            <Textarea
+              label="Category Description"
+              required
+              labelClassName="text-gray-900"
+              inputClassName="text-gray-900"
+              rows={5}
+              error={errors.category_description?.message}
+              {...register("category_description")}
+            />
+            <Select
+              label="Parent Category"
+              required
+              error={errors.parent_category?.message}
+              options={[
+                { value: "1", label: "Category 1" },
+                { value: "2", label: "Category 2" },
+                { value: "3", label: "Category 3" },
+              ]}
+               {...register("parent_category")}
+            />
+           
+
+            <RadioGroup
+              label="Gender"
+              {...register("gender")}
+              defaultCheckedValue=""
+              options={[
+                  { label: "Male", value: "male" },
+                  { label: "Female", value: "female" },
+                  { label: "Other", value: "other" },
+              ]}
+              error={errors.gender?.message}
+              required
+              />
+
+              <Checkbox
+                label="Terms and Conditions"
+                {...register("terms")}
+                defaultChecked={false}
+                error={errors.terms?.message}
+                required
+              />
+           
+
             {/* <RadioGroup 
             label="Gender"
             defaultCheckedValue=""
