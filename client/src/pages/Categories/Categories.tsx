@@ -15,8 +15,8 @@ function Categories() {
     setPageTitle: (title: string) => void;
   }>();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingRowId, setDeletingRowId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
-  console.log("globalFilter in Categories", globalFilter);
   const navigate = useNavigate();
   const [deleteCategory] = useDeleteCategoryMutation();
   const columns: ColumnDef<Category>[] = [
@@ -75,10 +75,19 @@ function Categories() {
         <button
           onClick={(e) => {
             e.stopPropagation();
+
             handleDelete(row.row.original.id as string);
           }}
+          disabled={deletingRowId !== null} // disable all buttons while deleting
         > 
-        {isDeleting ? ( <><Loader2 className="w-4 h-4 text-red-500 animate-spin" />  Deleting... </>) : (<Trash className={`w-4 h-4 text-red-500 `} aria-label="Delete" />)}
+
+        {deletingRowId === row.row.original.id ? (
+          <>
+            <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+          </>
+        ) : (
+          <Trash className="w-4 h-4 text-red-500" aria-label="Delete" />
+        )}
             
           </button>
         </div>
@@ -88,14 +97,15 @@ function Categories() {
   ];
 
   const handleDelete = async (id: string) => {
-   
+   setDeletingRowId(id); 
     setIsDeleting(true);
     console.log("id in handleDelete", id);
     const response = await deleteCategory({ id });
     setIsDeleting(false);
+    setDeletingRowId(null);
     console.log("response in handleDelete", response);
     if(response.error){
-      return toast.error("Error in deleting category", {
+      toast.error("Error in deleting category", {
         position: "top-center",
         autoClose: 2000,
         hideProgressBar: false,
@@ -106,7 +116,6 @@ function Categories() {
         theme: "colored",
         transition: Bounce,
       });
-      return;
     }else{
       toast.success("Category deleted successfully", {
         position: "top-center",
@@ -119,9 +128,6 @@ function Categories() {
         theme: "colored",
         transition: Bounce,
       });
-      return setTimeout(() => {
-        navigate("/categories");
-      }, 1500);
     }
   };
 
@@ -131,10 +137,10 @@ function Categories() {
     isError,
     error,
   } = useGetCategoriesQuery({});
-  console.log("data in Categories", data);
 
   useEffect(() => {
     setPageTitle("Categories");
+
   }, []);
   return (
     <div>
@@ -163,7 +169,7 @@ function Categories() {
       <TanstackTable
         columns={columns}
         data={data}
-        isLoading={isLoading}
+        isLoading={isLoading }
         isError={isError}
         error={error}
         globalFilter={globalFilter}

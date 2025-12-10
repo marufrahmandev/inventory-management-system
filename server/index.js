@@ -280,16 +280,7 @@ app.delete("/categories/:id", async (req, res, next) => {
 // });
 
 app.get("/products", async (req, res) => {
-  const data = await axios
-    .get("http://localhost:4000/products", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      params: {
-        category: req.query.category,
-      },
-    })
-    .then((response) => response.data);
+  const data = await getAllCategories("products");
 
   return res.status(200).json(data);
 });

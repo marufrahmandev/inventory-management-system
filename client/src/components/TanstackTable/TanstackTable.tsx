@@ -32,7 +32,6 @@ function TanstackTable({
   const [rowSelection, setRowSelection] = useState({});
   const [, setGlobalFilter] = useState(globalFilter);
 
-  console.log(rowSelection);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
