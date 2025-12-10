@@ -3,11 +3,17 @@ const multer = require("multer");
 const axios = require("axios");
 var cors = require('cors')
 const app = express();
-
+const fs = require("fs");
+const path = require("path");
 
 app.use(cors())
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
+
+
+app.use(express.static('uploads'));
+
+
 
 
 
@@ -54,14 +60,51 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/categories", async (req, res) => {
-  const data = await axios
-    .get("http://localhost:4000/categories", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-    .then((response) => response.data);
+  app.get("/categories", async (req, res) => {
+    const data = await axios
+      .get("http://localhost:4000/categories", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      .then((response) => response.data);
+
+    return res.status(200).json(data);
+  });
+
+
+
+  const imageMimeTypeMap = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "svg": "image/svg+xml",
+    "tiff": "image/tiff",
+  };
+app.get("/categories/:id", async (req, res) => {
+  const { id } = req.params;
+  const data = await axios.get(`http://localhost:4000/categories/${id}`, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }).then((response) => response.data);
+
+  if( data.category_image){
+      data.category_image_url = `http://localhost:3000/uploads/${data.category_image}`;
+
+      try{
+          const filePath = path.join(__dirname, "uploads", data.category_image);
+          const imageMimeType = imageMimeTypeMap[data.category_image.split(".")[1]];
+          const imageBuffer = fs.readFileSync(filePath);
+          const base64Image = imageBuffer.toString("base64");
+          data.category_image_base64 = `data:${imageMimeType};base64,${base64Image}`;
+      }catch(error){
+          console.log("Error in getting category image base64", error);
+      }
+  }
+
 
   return res.status(200).json(data);
 });
@@ -94,6 +137,65 @@ app.post("/categories", async(req, res, next) => {
 
     return res.status(200).json(responseData);
 
+});
+
+app.put("/categories/:id", async(req, res, next) => {
+
+  const { id } = req.params;
+
+   const data = await storeSingleFile(req, res, next);
+
+    console.log("Inside controller req.body", req.body);
+    console.log("Inside controller req.file", req.file);
+
+    const {
+        name = "",
+        description = "",
+        parent_category = null,
+        category_image = null,
+    } = req.body;
+
+    const requestData = {
+        name,
+        description,
+        parent_category,
+        category_image: req.file ? req.file.filename : category_image,
+    };
+
+    const responseData = await axios.put(`http://localhost:4000/categories/${id}`, requestData, {
+        headers: {
+            "Content-Type": "application/json",
+        },
+    }).then((response) => response?.data);
+
+    return res.status(200).json(responseData);
+
+});
+
+app.delete("/categories/:id", async(req, res, next) => {
+  const { id } = req.params;
+  const category = await axios.get(`http://localhost:4000/categories/${id}`, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }).then((response) => response?.data);
+  console.log("category", category);
+  if(category.category_image){
+    try{
+      unlinkSync(path.join(__dirname, "uploads", category.category_image));
+      fs.unlinkSync(path.join(__dirname, "uploads", category.category_image));
+    }catch(error){
+      console.log("Error in deleting category image", error);
+    }
+  }
+  const responseData = await axios.delete(`http://localhost:4000/categories/${id}`, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: id,
+  }).then((response) => response?.data);
+
+  return res.status(200).json(responseData);
 });
 
 // app.post("/categories", upload.none(), (req, res, next) => {

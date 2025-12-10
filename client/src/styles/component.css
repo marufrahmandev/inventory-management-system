@@ -29,7 +29,8 @@
     }
 
     tr:hover {
-      background-color: #ccc;
+      background-color: #f2f2f2;
+      cursor: pointer;
     }
 
     .resizer {

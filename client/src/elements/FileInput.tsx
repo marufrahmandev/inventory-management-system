@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useEffect, useState } from "react";
 import { classNames } from "../configs/navbar";
 
 type FileInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
@@ -7,6 +7,7 @@ type FileInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   inputClassName?: string;
   required?: boolean;
+  base64?: string;
 };
 
 const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
@@ -17,10 +18,12 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
       required = false,
       error = "",
       inputClassName = "",
+      base64 = "",
       ...rest
     },
     ref
   ) => {
+ 
     const [preview, setPreview] = useState<string | null>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,6 +44,12 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
 
       rest.onChange?.(e);
     };
+
+    useEffect(() => {
+      if (base64) {
+        setPreview(base64);
+      }
+    }, [base64]);
     return (
       <div className="flex space-x-5  justify-start  items-center">
         {label && (
@@ -54,7 +63,6 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
             {label} {required && <span className="text-red-500">*</span>}
           </label>
         )}
-
         <div className={classNames("mt-2 flex-grow flex gap-2")}>
           <div className="flex flex-col gap-2 justify-center">
             <input
@@ -73,7 +81,7 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
           </div>
 
           {/* Image preview */}
-          {preview && (
+          { preview && (
             <div className="flex-grow">
               <img
                 src={preview}
