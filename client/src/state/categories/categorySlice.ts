@@ -1,46 +1,69 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  createApi,
+  fetchBaseQuery,
+  type FetchBaseQueryMeta,
+  type FetchArgs,
+  type BaseQueryFn,
+  type FetchBaseQueryError,
+} from "@reduxjs/toolkit/query/react";
 import type { Category } from "../../types";
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type Meta = {
+  requestId: number;
+  timestamp: number;
+};
+
+function providesList<R extends { id: string | number }[], T extends string>(
+  resultsWithIds: R | undefined,
+  tagType: T
+) {
+  return resultsWithIds
+    ? [
+        { type: tagType, id: "LIST" },
+        ...resultsWithIds.map(({ id }) => ({ type: tagType, id })),
+      ]
+    : [{ type: tagType, id: "LIST" }];
+}
+
+const metaBaseQuery: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError,
+  {},
+  Meta & FetchBaseQueryMeta
+> = async (args, api, extraOptions) => {
+  const requestId = Math.floor(Math.random() * 1000000);
+  const timestamp = Date.now();
+
+  const baseResult = await fetchBaseQuery({ baseUrl: "http://localhost:3000" })(
+    args,
+    api,
+    extraOptions
+  );
+
+  return {
+    ...baseResult,
+    meta: baseResult.meta && { ...baseResult.meta, requestId, timestamp },
+  };
+};
+
 export const categoriesApiSlice = createApi({
   reducerPath: "categories",
-  baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:3000",
-  }),
+  baseQuery: metaBaseQuery,
+  tagTypes: ["Category"],
   endpoints: (builder) => {
     return {
       getCategories: builder.query({
-        // query: () => `/categories`,
-
-        // Code to simulate a delay in the API call
-        async queryFn(
-          _arg,
-          _queryApi,
-          _extraOptions,
-          fetchWithBQ
-        ): Promise<{ data: Category[] }> {
-          // call the actual API
+        queryFn: async (_arg, _queryApi, _extraOptions, fetchWithBQ) => {
           const result = await fetchWithBQ("/categories");
-          return result as { data: Category[] };
+          if (result.error) {
+            return { error: result.error };
+          }
+          return { data: result.data as Category[]  };
         },
-        providesTags: ["Categories" as any],
+        providesTags: (result: Category[] | undefined) => providesList(result, "Category")
       }),
-
-      // addCategory: builder.mutation({
-      //   query: (category) => ({
-      //     url: "/categories",
-      //     method: "POST",
-      //     body: category,
-      //   }),
-      // }),
-      addCategory: builder.mutation<
-        any,
-        {
-          file: File;
-          name: string;
-          description: string;
-          parent_category: string | null;
-        }
-      >({
+      addCategory: builder.mutation({
         query: ({ file, name, description, parent_category }) => {
           const formData = new FormData();
           formData.append("file", file);
@@ -54,28 +77,25 @@ export const categoriesApiSlice = createApi({
             formData: true, // This explicitly tells RTK Query to handle it as FormData
           };
         },
-        invalidatesTags: ["Categories" as any],
+        invalidatesTags: [{ type: "Category", id: "LIST" }],
       }),
       getCategoryById: builder.query({
         query: (id: string) => ({
           url: `/categories/${id}`,
           method: "GET",
         }),
-        providesTags: ["Categories" as any],
+        providesTags: (result, error, id) => [{ type: "Category", id }],
       }),
 
-       updateCategory: builder.mutation<
-        any,
-        {
-          id: string;
-          file: File;
-          name: string;
-          description: string;
-          parent_category: string | null;
-          category_image: string | null;
-        }
-      >({
-        query: ({ id, file, name, description, parent_category, category_image }) => {
+      updateCategory: builder.mutation({
+        query: ({
+          id,
+          file,
+          name,
+          description,
+          parent_category,
+          category_image,
+        }) => {
           const formData = new FormData();
           formData.append("file", file);
           formData.append("name", name);
@@ -86,29 +106,21 @@ export const categoriesApiSlice = createApi({
             url: `/categories/${id}`,
             method: "PUT",
             body: formData,
-            formData: true, // This explicitly tells RTK Query to handle it as FormData
+            formData: true,
           };
         },
-        invalidatesTags: ["Categories" as any],
+        invalidatesTags: (result, error, arg) => [
+          { type: "Category", id: arg.id },
+        ],
       }),
-      // updateCategory: builder.mutation({
-      //   query: (category) => {
-      //     const { id, ...body } = category;
-      //     return {
-      //       url: `categories/${id}`,
-      //       method: "PUT",
-      //       body,
-      //     };
-      //   },
-      // }),
-
       deleteCategory: builder.mutation({
         query: ({ id }) => ({
           url: `/categories/${id}`,
           method: "DELETE",
-          body: { id },
         }),
-        invalidatesTags: ["Categories" as any],
+        invalidatesTags: (result, error, arg) => [
+          { type: "Category", id: arg.id },
+        ],
       }),
     };
   },
