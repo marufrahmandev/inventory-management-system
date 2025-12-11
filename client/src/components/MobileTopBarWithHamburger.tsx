@@ -1,9 +1,6 @@
 import {
   Bars3Icon,
 } from '@heroicons/react/24/outline'    
-import { useEffect } from 'react';
-import { useOutletContext } from 'react-router';
-
 
 export default function MobileTopBarWithHamburger({ setMobileSidebarOpen, pageTitle }: { setMobileSidebarOpen: (mobileSidebarOpen: boolean) => void, pageTitle: string }) {
   return (

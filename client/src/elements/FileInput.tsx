@@ -7,7 +7,7 @@ type FileInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   inputClassName?: string;
   required?: boolean;
-  base64?: string;
+  imageUrl?: string;
 };
 
 const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
@@ -18,7 +18,7 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
       required = false,
       error = "",
       inputClassName = "",
-      base64 = "",
+      imageUrl = "",
       ...rest
     },
     ref
@@ -46,10 +46,10 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
     };
 
     useEffect(() => {
-      if (base64) {
-        setPreview(base64);
+      if (imageUrl) {
+        setPreview(imageUrl);
       }
-    }, [base64]);
+    }, [imageUrl]);
     return (
       <div className="flex space-x-5  justify-start  items-center">
         {label && (

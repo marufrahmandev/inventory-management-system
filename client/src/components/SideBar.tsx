@@ -1,8 +1,15 @@
-import { ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ArrowRightOnRectangleIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
 import { user, navigation } from "../configs/navbar";
 import type { NavItem, NavChild } from "../types";
 import { classNames } from "../configs/navbar";
 import { useLocation, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { findParentPath } from "../configs/navbar";
 export default function SideBar({
   sidebarOpen,
   setSidebarOpen,
@@ -16,8 +23,14 @@ export default function SideBar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  console.log(location.pathname);
   const activeClass = "bg-indigo-50 text-indigo-700";
+  useEffect(() => {
+    const parentPath = findParentPath(navigation, location.pathname);
+    if (parentPath && parentPath[0]) {
+      setOpenParent(parentPath[0]);
+    }
+  }, [location.pathname]);
+
   return (
     <>
       {sidebarOpen ? (
@@ -57,13 +70,24 @@ export default function SideBar({
                       onClick={() => {
                         if (hasChildren) {
                           setOpenParent(isOpen ? null : item.name);
-                        }else{
+                        } else {
                           navigate(item.href);
                         }
                       }}
-                     
                       className={classNames(
-                         item.href === location.pathname || item.children?.some((child: NavChild) => child.href === location.pathname)  
+                        item.href === location.pathname ||
+                          item.children?.some((child: NavChild) =>
+                            location.pathname.includes(
+                              child.href?.toString() || ""
+                            )
+                          ) ||
+                          item.children?.some((child: NavChild) =>
+                            child.children?.some((child: NavChild) =>
+                              location.pathname.includes(
+                                child.href?.toString() || ""
+                              )
+                            )
+                          )
                           ? activeClass
                           : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
                         "flex w-full items-center gap-x-3 rounded-md px-3 py-2 text-left text-sm font-medium cursor-pointer group-has-[a]:cursor-pointer"
@@ -72,7 +96,13 @@ export default function SideBar({
                       <Icon
                         aria-hidden="true"
                         className={classNames(
-                          item.children?.some((child: NavChild) => child.href === location.pathname) ? "text-indigo-600" : "text-gray-400",
+                          item.children?.some((child: NavChild) =>
+                            location.pathname.includes(
+                              child.href?.toString() || ""
+                            )
+                          )
+                            ? "text-indigo-600"
+                            : "text-gray-400",
                           "size-5"
                         )}
                       />
@@ -104,9 +134,25 @@ export default function SideBar({
                             onClick={() => {
                               navigate(child.href);
                             }}
-                            className={
-                                 `${child.href === location.pathname ? activeClass : ""} block rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900`
-                            }
+                            className={`${
+                              location.pathname.includes(
+                                child.href?.toString() || ""
+                              ) ||
+                              child.children?.some((child: NavChild) =>
+                                location.pathname.includes(
+                                  child.href?.toString() || ""
+                                )
+                              ) ||
+                              child.children?.some((child: NavChild) =>
+                                child.children?.some((child: NavChild) =>
+                                  location.pathname.includes(
+                                    child.href?.toString() || ""
+                                  )
+                                )
+                              )
+                                ? activeClass
+                                : ""
+                            } block rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900`}
                           >
                             {child.name}
                           </a>

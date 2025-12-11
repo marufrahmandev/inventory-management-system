@@ -4,11 +4,15 @@ import TanstackTable from "../../components/TanstackTable/TanstackTable";
 import type { Category } from "../../types";
 import type { ColumnDef } from "@tanstack/react-table";
 import IndeterminateCheckbox from "../../components/TanstackTable/IndeterminateCheckbox";
-import { useDeleteCategoryMutation, useGetCategoriesQuery } from "../../state/categories/categorySlice";
+import {
+  useDeleteCategoryMutation,
+  useGetCategoriesQuery,
+} from "../../state/categories/categorySlice";
 import DebouncedInput from "../../components/TanstackTable/DebouncedInput";
-import { Loader2, Pencil, Plus, Trash } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash } from "lucide-react";
 import { useNavigate } from "react-router";
-import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { Bounce, ToastContainer, toast } from "react-toastify";
+import { toastConfig } from "../../configs/toast";
 
 function Categories() {
   const { setPageTitle } = useOutletContext<{
@@ -54,7 +58,16 @@ function Categories() {
     {
       accessorKey: "optimizedImageUrl",
       header: "Image",
-      cell: (row) => row.getValue()?<img src={row.getValue() as string} alt="Category Image" className="w-10 h-10 rounded-sm" />:<div className="w-10 h-10 rounded-sm bg-gray-200"></div>,
+      cell: (row) =>
+        row.getValue() ? (
+          <img
+            src={row.getValue() as string}
+            alt="Category Image"
+            className="w-10 h-10 rounded-sm"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-sm bg-gray-200"></div>
+        ),
       enableColumnFilter: false,
       filterFn: "includesString",
       size: 100,
@@ -64,31 +77,29 @@ function Categories() {
       header: "Actions",
       cell: (row) => (
         <div className="flex gap-4">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/categories/edit/${row.row.original.id}`);
-          }}
-        >
-          <Pencil className="w-4 h-4 text-blue-500" aria-label="Edit" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/categories/edit/${row.row.original.id}`);
+            }}
+          >
+            <Pencil className="w-4 h-4 text-blue-500" aria-label="Edit" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
 
-            handleDelete(row.row.original.id as string);
-          }}
-          disabled={deletingRowId !== null} // disable all buttons while deleting
-        > 
-
-        {deletingRowId === row.row.original.id ? (
-          <>
-            <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
-          </>
-        ) : (
-          <Trash className="w-4 h-4 text-red-500" aria-label="Delete" />
-        )}
-            
+              handleDelete(row.row.original.id as string);
+            }}
+            disabled={deletingRowId !== null} // disable all buttons while deleting
+          >
+            {deletingRowId === row.row.original.id ? (
+              <>
+                <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+              </>
+            ) : (
+              <Trash className="w-4 h-4 text-red-500" aria-label="Delete" />
+            )}
           </button>
         </div>
       ),
@@ -97,37 +108,16 @@ function Categories() {
   ];
 
   const handleDelete = async (id: string) => {
-   setDeletingRowId(id); 
+    setDeletingRowId(id);
     setIsDeleting(true);
-    console.log("id in handleDelete", id);
     const response = await deleteCategory({ id });
     setIsDeleting(false);
     setDeletingRowId(null);
     console.log("response in handleDelete", response);
-    if(response.error){
-      toast.error("Error in deleting category", {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
-    }else{
-      toast.success("Category deleted successfully", {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
+    if (response.error) {
+      toast.error("Error in deleting category", toastConfig.error);
+    } else {
+      toast.success("Category deleted successfully", toastConfig.success);
     }
   };
 
@@ -140,7 +130,6 @@ function Categories() {
 
   useEffect(() => {
     setPageTitle("Categories");
-
   }, []);
   return (
     <div>
@@ -152,7 +141,6 @@ function Categories() {
           placeholder="Search..."
         />
 
-        
         <button
           type="submit"
           className="action_btn"
@@ -161,15 +149,12 @@ function Categories() {
           <Plus className="w-6 h-6" />
           Add Category
         </button>
-
       </div>
 
-    
- 
       <TanstackTable
         columns={columns}
         data={data}
-        isLoading={isLoading }
+        isLoading={isLoading}
         isError={isError}
         error={error}
         globalFilter={globalFilter}

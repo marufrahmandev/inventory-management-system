@@ -2,7 +2,8 @@ import type { SVGProps } from "react"
 import type { ComponentType } from "react"
 export type NavChild = {
   name: string
-  href: string
+  href: string,
+  children: NavChild[]
 }
 
 export type NavItem = {

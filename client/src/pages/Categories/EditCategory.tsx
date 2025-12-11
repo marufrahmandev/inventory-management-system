@@ -9,24 +9,27 @@ import Input from "../../elements/Input";
 import Textarea from "../../elements/Textarea";
 import Select from "../../elements/Select";
 import FileInput from "../../elements/FileInput";
-import { useGetCategoryByIdQuery, useUpdateCategoryMutation } from "../../state/categories/categorySlice";
+import {
+  useGetCategoryByIdQuery,
+  useUpdateCategoryMutation,
+} from "../../state/categories/categorySlice";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+import { toastConfig } from "../../configs/toast";
 
-const baseSchema = z.object({
-  category_name: z
-    .string()
-    .trim()
-    .min(1, { message: "Required" })
-    .min(2, { message: "Minimum 2 characters required" }),
-  category_description: z
-    .string()
-    .trim()
-    .min(1, { message: "Required" })
-    .min(2, { message: "Minimum 2 characters required" }),
-  parent_category: z.string().trim().optional(),
-  category_image: z.preprocess(
-    (val) => {
-      console.log("category_image", val);
+const baseSchema = z
+  .object({
+    category_name: z
+      .string()
+      .trim()
+      .min(1, { message: "Required" })
+      .min(2, { message: "Minimum 2 characters required" }),
+    category_description: z
+      .string()
+      .trim()
+      .min(1, { message: "Required" })
+      .min(2, { message: "Minimum 2 characters required" }),
+    parent_category: z.string().trim().optional(),
+    category_image: z.preprocess((val) => {
       if (!val) return null;
       if (val instanceof FileList) {
         console.log("Instancs of FileList");
@@ -38,54 +41,41 @@ const baseSchema = z.object({
         return val;
       }
       return null;
-    },
-    z
-      .instanceof(File)
-      .optional().nullable(),
-      
-  ),
-  category_image_base64: z.string().optional(),
-
-}).superRefine((values: any, ctx: any): void => {
-        console.log("values", values);
-        console.log("ctx", ctx);
-        if (!values.category_image && !values.category_image_base64) {
-          ctx.addIssue({
-            path: ["category_image"],
-            message: "Image is required",
-            code: z.ZodIssueCode.custom,
-          });
-        }
- });
+    }, z.instanceof(File).optional().nullable()),
+    optimizedImageUrl: z.string().optional(),
+  })
+  .superRefine((values: any, ctx: any): void => {
+    if (!values.category_image && !values.optimizedImageUrl) {
+      ctx.addIssue({
+        path: ["category_image"],
+        message: "Image is required",
+        code: z.ZodIssueCode.custom,
+      });
+    }
+  });
 
 function EditCategory() {
   const { id } = useParams();
 
   const [updateCategory] = useUpdateCategoryMutation({});
   const { data: category } = useGetCategoryByIdQuery(id as unknown as string);
-  // console.log("category", category);
+  console.log("category", category);
   const { setPageTitle } = useOutletContext<{
     setPageTitle: (title: string) => void;
   }>();
-
-
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: {
-      errors,
-      isValid,
-      isSubmitting,
-    },
+    formState: { errors, isValid, isSubmitting },
   } = useForm({
     defaultValues: {
       category_name: category?.name || "",
       category_description: category?.description || "",
       parent_category: category?.parent_category || "",
       category_image: null,
-      category_image_base64: category?.category_image_base64 || "",
+      optimizedImageUrl: category?.optimizedImageUrl || "",
     },
     mode: "all",
     criteriaMode: "all",
@@ -95,18 +85,16 @@ function EditCategory() {
   });
 
   useEffect(() => {
-      if (category) {
-        reset({
-          category_name: category.name,
-          category_description: category.description,
-          parent_category: category.parent_category,
-          category_image: null,
-          category_image_base64: category.category_image_base64,
-        });
-      }
-}, [category, reset]);
-
-  console.log("isSubmitting: ", isSubmitting);
+    if (category) {
+      reset({
+        category_name: category.name,
+        category_description: category.description,
+        parent_category: category.parent_category,
+        category_image: null,
+        optimizedImageUrl: category.optimizedImageUrl,
+      });
+    }
+  }, [category, reset]);
 
   const navigate = useNavigate();
 
@@ -125,7 +113,7 @@ function EditCategory() {
     console.log("onSubmit data", data);
 
     const response = await updateCategory({
-      id: id  as string,
+      id: id as string,
       name: data.category_name,
       description: data.category_description,
       parent_category: data.parent_category,
@@ -135,34 +123,14 @@ function EditCategory() {
     console.log("response", response);
 
     if (!response.error) {
-      toast.success("Category updated successfully", {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
+      toast.success("Category updated successfully", toastConfig.success);
       return setTimeout(() => {
         setIsFormsubmitting(false);
         navigate("/categories");
       }, 1500);
     } else {
       setIsFormsubmitting(false);
-      return toast.error("Something went wrong", {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
+      return toast.error("Something went wrong", toastConfig.error);
     }
   };
 
@@ -214,7 +182,7 @@ function EditCategory() {
               accept="image/*"
               label="Category Image"
               {...register("category_image")}
-              base64={category?.category_image_base64 || ""}
+              imageUrl={category?.optimizedImageUrl || ""}
               required
               error={errors.category_image?.message as string}
             />

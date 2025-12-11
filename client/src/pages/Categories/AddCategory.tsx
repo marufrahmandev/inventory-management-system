@@ -12,7 +12,8 @@ import FileInput from "../../elements/FileInput";
 import RadioGroup from "../../elements/RadioGroup";
 import { useAddCategoryMutation } from "../../state/categories/categorySlice";
 import Checkbox from "../../elements/Checkbox";
-import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { Bounce, ToastContainer, toast } from "react-toastify";
+import { toastConfig } from "../../configs/toast";
 
 const baseSchema = z.object({
   category_name: z
@@ -28,7 +29,6 @@ const baseSchema = z.object({
   parent_category: z.string().trim(),
   category_image: z.preprocess(
     (val) => {
-      console.log("category_image", val);
       if (!val) return null;
       if (val instanceof FileList) {
         console.log("Instancs of FileList");
@@ -60,7 +60,6 @@ const baseSchema = z.object({
 });
 
 function AddCategory() {
-
   const [
     addCategory,
     isAddCategoryLoading,
@@ -107,26 +106,16 @@ function AddCategory() {
     },
   });
 
-  console.log("isSubmitting: ", isSubmitting);
-
-
   const navigate = useNavigate();
 
   const [isFormsubmitting, setIsFormsubmitting] = useState(false);
 
-
   useEffect(() => {
-       
     setPageTitle("Add Category");
   }, []);
 
   const onSubmit = async (data: any) => {
-    console.log("isSubmitting>>>>BEFORE SUBMIT", isSubmitting);
-
     setIsFormsubmitting(true);
-    console.log("===========form submitted============");
-
-    
     const response = await addCategory({
       name: data.category_name,
       description: data.category_description,
@@ -135,40 +124,17 @@ function AddCategory() {
     });
     console.log("response", response);
 
-   
-    if(!response.error){
-      toast.success('Category added successfully', {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
-     return setTimeout(() => {
-         setIsFormsubmitting(false);
+    if (!response.error) {
+      toast.success("Category added successfully", toastConfig.success);
+      return setTimeout(() => {
+        setIsFormsubmitting(false);
         navigate("/categories");
       }, 1500);
-    }else{
+    } else {
       setIsFormsubmitting(false);
-      return toast.error('Something went wrong', {
-        position: "top-center",
-        autoClose: 2000,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
+      return toast.error("Something went wrong", toastConfig.error);
     }
-
   };
-
 
   return (
     <div>
@@ -223,13 +189,17 @@ function AddCategory() {
             />
           </div>
           <div className="flex justify-start gap-5 sm:max-w-[80%]">
-            <Button type="submit" className="mt-4 min-w-[150px]" disabled={isFormsubmitting || isSubmitting || !isValid}>
+            <Button
+              type="submit"
+              className="mt-4 min-w-[150px]"
+              disabled={isFormsubmitting || isSubmitting || !isValid}
+            >
               {isFormsubmitting || isSubmitting ? "Submitting..." : "Submit"}
             </Button>
             <Button
               type="button"
               className="mt-4 min-w-[150px] bg-gray-500 text-white"
-              disabled={isFormsubmitting || isSubmitting  }
+              disabled={isFormsubmitting || isSubmitting}
               onClick={() => navigate("/categories")}
             >
               Cancel

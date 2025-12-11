@@ -20,7 +20,6 @@ export default function MobileSideBarOverlay({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  console.log(location.pathname);
   const activeClass = "bg-indigo-50 text-indigo-700";
   return (
     <>
