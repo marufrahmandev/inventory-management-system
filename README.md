@@ -1,524 +1,525 @@
 # Inventory Management System
 
-A full-stack Inventory Management System built with React.js frontend and Express.js backend, featuring Sequelize ORM with Singleton Pattern, comprehensive inventory tracking, order management, and reporting capabilities.
+A full-stack, production-ready **Inventory Management System** built with **React.js** (frontend) and **Express.js** (backend), featuring comprehensive CRUD operations, authentication, and real-time analytics.
 
-## 🚀 Features
+---
+
+## 📋 Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [System Architecture](#system-architecture)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [API Documentation](#api-documentation)
+- [Screenshots](#screenshots)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## ✨ Features
 
 ### Core Modules
+- **📦 Product Management** - Complete CRUD operations with image uploads (Cloudinary)
+- **📂 Category Management** - Hierarchical categories with parent-child relationships
+- **📊 Stock Management** - Real-time inventory tracking with low-stock alerts
+- **🛒 Sales Orders** - Customer orders with multi-item support and status tracking
+- **🛍️ Purchase Orders** - Supplier purchase orders with automated stock updates
+- **💰 Invoices** - Invoice generation linked to sales orders with payment tracking
+- **👥 Customer Management** - Customer profiles with contact information
+- **🏭 Supplier Management** - Supplier management with contact details
+- **📈 Reports & Analytics** - Dashboard with KPIs, sales trends, and inventory insights
 
-1. **Category Management** ✅
+### Additional Features
+- **🔐 User Authentication** - JWT-based authentication with role-based access control (Admin, Manager, Staff, Viewer)
+- **💳 Payment Tracking** - Multi-method payment tracking (Cash, Credit Card, Bank Transfer, etc.)
+- **📝 Audit Logs** - Complete activity tracking for compliance and security
+- **🔔 Notifications** - Low-stock alerts and system notifications
+- **⚙️ Settings** - Company info, tax rates, currency, and email configuration
+- **🔄 Returns Management** - Sales and purchase returns with refund processing
+- **🔍 Advanced Search** - Real-time search and filtering across all modules
+- **📱 Responsive UI** - Mobile-friendly interface with modern design
 
-   - List, Add, Edit, Delete categories
-   - Image upload with Cloudinary integration
-   - Parent category support
-
-2. **Product Management** ✅
-
-   - Full CRUD operations
-   - SKU, barcode, and pricing management
-   - Stock level tracking with low stock alerts
-   - Category association
-
-3. **Sales Orders** ✅
-
-   - Create and manage sales orders
-   - Multiple order items support
-   - Order status tracking
-   - Automatic stock deduction
-
-4. **Purchase Orders** ✅
-
-   - Create and manage purchase orders
-   - Supplier information tracking
-   - Order status tracking
-   - Automatic stock addition on receipt
-
-5. **Invoices** ✅
-
-   - Generate invoices
-   - Payment status tracking
-   - Due date management
-
-6. **Stock Management** ✅
-
-   - Track stock levels by location
-   - Batch number and expiry date tracking
-   - Low stock alerts
-
-7. **Reports & Analytics** ✅
-   - Dashboard with key metrics
-   - Sales, purchase, inventory reports
-   - Date range filtering
+---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-
-- **React 19** - UI library
-- **TypeScript** - Type safety
-- **Redux Toolkit** + **RTK Query** - State management & API calls
-- **React Hook Form** + **Zod** - Form management & validation
-- **TanStack Table** - Advanced table features
-- **Tailwind CSS** - Styling
-- **React Router 7** - Routing
+- **React.js 18** - Modern UI library with hooks
+- **TypeScript** - Type-safe development
+- **Redux Toolkit (RTK Query)** - State management and API caching
+- **React Hook Form** - Form handling with validation
+- **Zod** - Schema validation
+- **TanStack Table** - Advanced data tables with sorting, filtering, and pagination
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Router DOM** - Client-side routing
+- **Lucide Icons** - Modern icon library
+- **React Toastify** - Toast notifications
+- **Vite** - Fast build tool and dev server
 
 ### Backend
-
-- **Express.js** - Web framework
-- **Node.js** - Runtime
+- **Node.js & Express.js** - REST API server
+- **Sequelize ORM** - Database ORM with MySQL
 - **MySQL** - Relational database
-- **Sequelize ORM** - Object-Relational Mapping with Singleton Pattern ⭐
-- **Cloudinary** - Image storage
-- **Multer** - File uploads
-- **CORS** - Cross-origin support
+- **JWT (jsonwebtoken)** - Authentication tokens
+- **bcrypt** - Password hashing
+- **Multer** - File upload handling
+- **Cloudinary** - Image storage and optimization
+- **Nodemailer** - Email notifications
+- **dotenv** - Environment configuration
 
-## 📦 Installation & Setup
+---
 
-### Prerequisites
-
-- Node.js (v18+)
-- MySQL Server (v8.0+)
-- Cloudinary account (optional, for images)
-
-### Quick Start (5 Minutes)
-
-#### 1. Clone & Install
-
-```bash
-# Clone repository
-git clone <your-repo-url>
-cd inventory-management-system
-
-# Install backend dependencies
-cd server
-npm install
-
-# Install frontend dependencies
-cd ../client
-npm install
-```
-
-#### 2. Setup MySQL Database
-
-```bash
-# Login to MySQL
-mysql -u root -p
-
-# Create database
-CREATE DATABASE inventory_management;
-
-# Exit
-exit;
-```
-
-#### 3. Configure Environment Variables
-
-Create `server/.env` file (copy from `.env.example`):
-
-```env
-# Server
-NODE_ENV=development
-PORT=3000
-API_VERSION=v1
-
-# Database
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=inventory_management
-
-# Cloudinary (optional - for image uploads)
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-```
-
-#### 4. Initialize Database
-
-```bash
-cd server
-npm run init-db
-```
-
-#### 5. Start Servers
-
-**Backend:**
-
-```bash
-cd server
-npm run dev
-```
-
-**Frontend (new terminal):**
-
-```bash
-cd client
-npm run dev
-```
-
-#### 6. Access Application
-
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:3000
-- API v1: http://localhost:3000/api/v1
-
-## 📁 Project Structure
+## 🏗️ System Architecture
 
 ```
 inventory-management-system/
-├── client/                  # React frontend
+├── client/                    # React Frontend
 │   ├── src/
-│   │   ├── pages/          # Page components
-│   │   ├── components/     # Reusable components
-│   │   ├── state/          # Redux store
-│   │   └── types/          # TypeScript types
+│   │   ├── components/        # Reusable UI components
+│   │   ├── elements/          # Form elements (Input, Select, etc.)
+│   │   ├── pages/             # Page components (Categories, Products, etc.)
+│   │   ├── state/             # Redux slices and RTK Query APIs
+│   │   ├── configs/           # Configuration files (navbar, toast, etc.)
+│   │   ├── types/             # TypeScript type definitions
+│   │   └── routes.tsx         # Application routing
 │   └── package.json
 │
-├── server/                  # Express backend
-│   ├── config/             # Configuration
-│   │   ├── database.js     # Sequelize singleton connection
-│   │   └── env.config.js   # Environment config
-│   ├── models/             # Sequelize models
-│   │   ├── index.js        # Model definitions & associations
-│   │   ├── categoryModel.js
-│   │   ├── productModel.js
-│   │   └── ...
-│   ├── controllers/        # Business logic
-│   ├── routes/             # API routes
-│   │   ├── index.js        # Main router
-│   │   ├── category.routes.js
-│   │   ├── product.routes.js
-│   │   ├── salesOrder.routes.js
-│   │   ├── purchaseOrder.routes.js
-│   │   ├── invoice.routes.js
-│   │   ├── stock.routes.js
-│   │   └── report.routes.js
-│   ├── utils/              # Utilities
-│   ├── init-database.js    # DB initialization
-│   └── server.js           # Server entry point
+├── server/                    # Express Backend
+│   ├── config/                # Database and environment config
+│   ├── controllers/           # Business logic controllers
+│   ├── models/                # Sequelize models
+│   ├── routes/                # API route definitions
+│   ├── middleware/            # Authentication and validation middleware
+│   ├── utils/                 # Helper utilities (Cloudinary, email, etc.)
+│   ├── uploads/               # Temporary file storage
+│   ├── init-database.js       # Database initialization script
+│   ├── seed-database.js       # Sample data seeding script
+│   └── server.js              # Express app entry point
 │
-└── README.md               # This file
+└── README.md                  # This file
 ```
 
-## 📡 API Endpoints
+---
+
+## 🚀 Installation
+
+### Prerequisites
+- **Node.js** (v16 or higher)
+- **MySQL** (v8.0 or higher)
+- **npm** or **yarn**
+- **Cloudinary Account** (for image uploads) - [Sign up here](https://cloudinary.com/)
+
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd inventory-management-system
+```
+
+### 2. Backend Setup
+
+#### Install Dependencies
+```bash
+cd server
+npm install
+```
+
+#### Configure Environment Variables
+Create a `.env` file in the `server` directory:
+
+```env
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=inventory_management
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+
+# JWT Secret
+JWT_SECRET=your_super_secret_jwt_key_change_in_production
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# Email Configuration (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_email_password
+```
+
+#### Initialize Database
+```bash
+# Create database and tables
+node init-database.js
+
+# (Optional) Seed sample data
+node seed-database.js
+```
+
+#### Start Backend Server
+```bash
+npm start
+```
+
+Backend will run at `http://localhost:3000`
+
+---
+
+### 3. Frontend Setup
+
+#### Install Dependencies
+```bash
+cd client
+npm install
+```
+
+#### Configure API Base URL (Optional)
+If your backend runs on a different port, update the `baseUrl` in RTK Query slices:
+- `client/src/state/*/[module]Slice.ts`
+
+Default: `http://localhost:3000/api`
+
+#### Start Frontend Development Server
+```bash
+npm run dev
+```
+
+Frontend will run at `http://localhost:5173`
+
+---
+
+## 📖 Usage
+
+### 1. Access the Application
+Open your browser and navigate to: `http://localhost:5173`
+
+### 2. Login (Optional - if authentication is enabled)
+- **Default Admin Account:**
+  - Email: `admin@inventory.com`
+  - Password: `admin123`
+
+### 3. Explore Features
+- **Dashboard** - View KPIs, recent activity, and business overview
+- **Catalog** - Manage categories and products
+- **Contacts** - Add customers and suppliers
+- **Purchase** - Create purchase orders
+- **Sales** - Create sales orders and generate invoices
+- **Reports** - View analytics and export reports
+
+---
+
+## 📂 Project Structure
+
+### Frontend (`client/src/`)
+```
+src/
+├── components/
+│   ├── DashboardLayout.tsx          # Main layout wrapper
+│   ├── SideBar.tsx                  # Desktop navigation
+│   ├── MobileSideBarOverlay.tsx     # Mobile navigation
+│   └── TanstackTable/               # Reusable table component
+├── elements/
+│   ├── Input.tsx                    # Form input component
+│   ├── Select.tsx                   # Dropdown component
+│   ├── Textarea.tsx                 # Textarea component
+│   ├── FileInput.tsx                # File upload component
+│   └── Button.tsx                   # Button component
+├── pages/
+│   ├── Auth/                        # Login & Signup pages
+│   ├── Categories/                  # Category CRUD pages
+│   ├── Products/                    # Product CRUD pages
+│   ├── Stocks/                      # Stock CRUD pages
+│   ├── SalesOrders/                 # Sales Order CRUD pages
+│   ├── PurchaseOrders/              # Purchase Order CRUD pages
+│   ├── Invoices/                    # Invoice CRUD pages
+│   ├── Customers/                   # Customer CRUD pages
+│   ├── Suppliers/                   # Supplier CRUD pages
+│   ├── Reports/                     # Reports and analytics
+│   └── Home.tsx                     # Dashboard page
+├── state/
+│   ├── categories/categorySlice.ts  # Category API slice
+│   ├── products/productSlice.ts     # Product API slice
+│   ├── auth/authSlice.ts            # Auth API slice
+│   └── store.ts                     # Redux store configuration
+├── configs/
+│   ├── navbar.tsx                   # Navigation configuration
+│   └── toast.ts                     # Toast notification config
+└── routes.tsx                       # Application routes
+```
+
+### Backend (`server/`)
+```
+server/
+├── config/
+│   ├── database.js                  # Sequelize connection (singleton)
+│   └── env.config.js                # Environment variables
+├── controllers/
+│   ├── categoryController.js        # Category logic
+│   ├── productController.js         # Product logic
+│   ├── authController.js            # Authentication logic
+│   └── [other controllers]
+├── models/
+│   ├── index.js                     # Model associations
+│   ├── categoryModel.js             # Category model
+│   ├── productModel.js              # Product model
+│   └── [other models]
+├── routes/
+│   ├── index.js                     # Route aggregator
+│   ├── category.routes.js           # Category routes
+│   ├── product.routes.js            # Product routes
+│   ├── auth.routes.js               # Auth routes
+│   └── [other routes]
+├── middleware/
+│   └── auth.middleware.js           # JWT authentication
+├── utils/
+│   ├── cloudinaryHelper.js          # Image upload utility
+│   └── emailHelper.js               # Email sending utility
+└── server.js                        # Express app entry point
+```
+
+---
+
+## 📡 API Documentation
 
 ### Base URL
-
 ```
-http://localhost:3000/api/v1
+http://localhost:3000/api
 ```
 
-### Endpoints
+### Authentication Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/signup` | Register new user |
+| POST | `/auth/login` | Login user |
+| POST | `/auth/logout` | Logout user |
+| GET | `/auth/profile` | Get user profile |
 
-**Categories**
+### Category Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/categories` | Get all categories |
+| GET | `/categories/:id` | Get category by ID |
+| POST | `/categories` | Create new category |
+| PUT | `/categories/:id` | Update category |
+| DELETE | `/categories/:id` | Delete category |
 
-- `GET /api/v1/categories` - Get all categories
-- `POST /api/v1/categories` - Create category
-- `PUT /api/v1/categories/:id` - Update category
-- `DELETE /api/v1/categories/:id` - Delete category
+### Product Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/products` | Get all products |
+| GET | `/products/:id` | Get product by ID |
+| GET | `/products/category/:categoryId` | Get products by category |
+| POST | `/products` | Create new product |
+| PUT | `/products/:id` | Update product |
+| DELETE | `/products/:id` | Delete product |
 
-**Products**
+### Stock Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/stocks` | Get all stocks |
+| GET | `/stocks/:id` | Get stock by ID |
+| GET | `/stocks/product/:productId` | Get stocks by product |
+| GET | `/stocks/low-stock` | Get low stock items |
+| POST | `/stocks` | Create new stock entry |
+| PUT | `/stocks/:id` | Update stock |
+| DELETE | `/stocks/:id` | Delete stock |
 
-- `GET /api/v1/products` - Get all products
-- `POST /api/v1/products` - Create product
-- `PUT /api/v1/products/:id` - Update product
-- `DELETE /api/v1/products/:id` - Delete product
+### Sales Order Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/sales-orders` | Get all sales orders |
+| GET | `/sales-orders/:id` | Get sales order by ID |
+| POST | `/sales-orders` | Create new sales order |
+| PUT | `/sales-orders/:id` | Update sales order |
+| DELETE | `/sales-orders/:id` | Delete sales order |
 
-**Sales Orders**
+### Purchase Order Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/purchase-orders` | Get all purchase orders |
+| GET | `/purchase-orders/:id` | Get purchase order by ID |
+| POST | `/purchase-orders` | Create new purchase order |
+| PUT | `/purchase-orders/:id` | Update purchase order |
+| DELETE | `/purchase-orders/:id` | Delete purchase order |
 
-- `GET /api/v1/sales-orders` - Get all sales orders
+### Invoice Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/invoices` | Get all invoices |
+| GET | `/invoices/:id` | Get invoice by ID |
+| POST | `/invoices` | Create new invoice |
+| PUT | `/invoices/:id` | Update invoice |
+| DELETE | `/invoices/:id` | Delete invoice |
 
-**Purchase Orders**
+### Customer & Supplier Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/customers` | Get all customers |
+| POST | `/customers` | Create new customer |
+| GET | `/suppliers` | Get all suppliers |
+| POST | `/suppliers` | Create new supplier |
 
-- `GET /api/v1/purchase-orders` - Get all purchase orders
+### Report Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/reports/dashboard` | Get dashboard statistics |
+| GET | `/reports/sales` | Get sales reports |
+| GET | `/reports/purchases` | Get purchase reports |
+| GET | `/reports/invoices` | Get invoice reports |
+| GET | `/reports/inventory` | Get inventory reports |
 
-**Invoices**
+---
 
-- `GET /api/v1/invoices` - Get all invoices
+## 🎨 Screenshots
 
-**Stocks**
+### Dashboard
+![Dashboard](./screenshots/dashboard.png)
 
-- `GET /api/v1/stocks` - Get all stocks
-- `GET /api/v1/stocks/low-stock` - Get low stock items
+### Product Management
+![Products](./screenshots/products.png)
 
-**Reports**
+### Sales Orders
+![Sales Orders](./screenshots/sales-orders.png)
 
-- `GET /api/v1/reports/dashboard` - Dashboard summary
-- `GET /api/v1/reports/sales` - Sales report
-- `GET /api/v1/reports/purchase` - Purchase report
-- `GET /api/v1/reports/inventory` - Inventory report
-- `GET /api/v1/reports/invoice` - Invoice report
+*(Add actual screenshots to `/screenshots` folder)*
+
+---
 
 ## 🧪 Testing
 
-### Run Automated Tests
-
+### Backend API Testing
 ```bash
 cd server
-node test-api.js
+node test-all-endpoints.js
 ```
 
-### Manual Testing
-
+### Frontend Testing
 ```bash
-# Test health endpoint
-curl http://localhost:3000/
-
-# Test categories
-curl http://localhost:3000/api/v1/categories
-
-# Create category
-curl -X POST http://localhost:3000/api/v1/categories \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Electronics","description":"Electronic devices"}'
+cd client
+npm run test
 ```
 
-## 🎯 Sequelize ORM Features
+---
 
-### Singleton Pattern
-
-- Single database connection instance
-- Efficient resource management
-- Connection pooling (max: 10)
-
-### Model Operations
-
-```javascript
-// Get all
-const categories = await Category.findAll();
-
-// Get by ID
-const category = await Category.findByPk(id);
-
-// Create
-const category = await Category.create({ name: "Electronics" });
-
-// Update
-await category.update({ name: "Updated Name" });
-
-// Delete
-await category.destroy();
-```
-
-### With Associations
-
-```javascript
-// Eager loading
-const products = await Product.findAll({
-  include: [{ model: Category, as: "category" }],
-});
-```
-
-### Transactions
-
-```javascript
-await database.transaction(async (t) => {
-  const order = await SalesOrder.create(data, { transaction: t });
-  await SalesOrderItem.bulkCreate(items, { transaction: t });
-});
-```
-
-## 🐛 Troubleshooting
-
-### Server Won't Start
-
-**Check:**
-
-1. MySQL is running
-2. `.env` file exists with correct credentials
-3. Database created: `CREATE DATABASE inventory_management;`
-4. Run `npm install` in server folder
-
-### Database Connection Error
-
-```bash
-# Create database
-mysql -u root -p
-CREATE DATABASE inventory_management;
-exit;
-
-# Initialize tables
-cd server
-npm run init-db
-```
-
-### Frontend Can't Connect
-
-**Check:**
-
-1. Backend is running on port 3000
-2. CORS settings in `.env`:
-   ```env
-   CORS_ORIGIN=http://localhost:5173
-   ```
-3. Restart both servers
-
-### Port Already in Use
-
-```bash
-# Change port in .env
-PORT=3001
-
-# Or kill process on port 3000
-# Windows
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
-
-# Mac/Linux
-lsof -ti:3000 | xargs kill -9
-```
-
-## 🚀 NPM Scripts
+## 📦 Available Scripts
 
 ### Backend (`server/`)
-
 ```bash
-npm run dev          # Start development server
-npm start            # Start production server
-npm run init-db      # Initialize database (safe)
-npm run init-db:seed # Initialize with sample data
-npm run init-db:force # Force recreate (drops tables)
+npm start              # Start server in production mode
+npm run dev            # Start server in development mode (with nodemon)
+npm run init-db        # Initialize database
+npm run seed           # Seed sample data
+npm test               # Run API tests
 ```
 
 ### Frontend (`client/`)
-
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
+npm run dev            # Start development server
+npm run build          # Build for production
+npm run preview        # Preview production build
+npm run lint           # Run ESLint
 ```
 
-## 🏗️ Architecture
+---
 
-### Design Patterns
+## 🔐 Security Features
 
-- **Singleton Pattern** - Database connection
-- **MVC Pattern** - Models, Controllers, Routes
-- **Repository Pattern** - Data access abstraction
+- **JWT Authentication** - Secure token-based authentication
+- **Password Hashing** - bcrypt encryption for user passwords
+- **Role-Based Access Control** - Admin, Manager, Staff, Viewer roles
+- **Input Validation** - Zod schema validation on frontend, backend validation
+- **SQL Injection Protection** - Sequelize ORM with parameterized queries
+- **XSS Protection** - React's built-in XSS protection
+- **CORS Configuration** - Restricted API access
+- **Environment Variables** - Sensitive data in `.env` files
 
-### Request Flow
+---
 
-```
-Client → Routes → Controller → Model → Sequelize ORM → MySQL Database
-```
+## 🚀 Deployment
 
-## 🔐 Security
+### Frontend (Vercel/Netlify)
+1. Build the frontend: `npm run build` (in `client/`)
+2. Deploy the `client/dist` folder to Vercel/Netlify
+3. Set environment variables for API base URL
 
-- SQL injection prevention (via Sequelize)
-- Environment variables for sensitive data
-- CORS configuration
-- Input validation
+### Backend (Heroku/Railway/AWS)
+1. Set environment variables (DB credentials, JWT secret, etc.)
+2. Deploy the `server/` directory
+3. Run database migrations: `node init-database.js`
 
-## 📊 Environment Variables
+### Database (MySQL)
+- Use a cloud MySQL provider (AWS RDS, PlanetScale, etc.)
+- Update `DB_HOST`, `DB_USER`, `DB_PASSWORD` in production `.env`
 
-| Variable                | Description           | Default              | Required   |
-| ----------------------- | --------------------- | -------------------- | ---------- |
-| `NODE_ENV`              | Environment mode      | development          | No         |
-| `PORT`                  | Server port           | 3000                 | No         |
-| `API_VERSION`           | API version           | v1                   | No         |
-| `DB_HOST`               | MySQL host            | localhost            | No         |
-| `DB_PORT`               | MySQL port            | 3306                 | No         |
-| `DB_USER`               | MySQL username        | root                 | No         |
-| `DB_PASSWORD`           | MySQL password        | (empty)              | No         |
-| `DB_NAME`               | Database name         | inventory_management | No         |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | -                    | For images |
-| `CLOUDINARY_API_KEY`    | Cloudinary API key    | -                    | For images |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret | -                    | For images |
-
-**Note:** All variables have sensible defaults. Only configure what you need to change.
-
-## 📚 Key Technologies Explained
-
-### Sequelize ORM
-
-- **Type-safe** database operations
-- **Automatic** SQL query generation
-- **Built-in** validation
-- **Transaction** support
-- **Association** management
-
-### Benefits
-
-- ✅ No SQL injection
-- ✅ Easy relationships
-- ✅ Automatic migrations
-- ✅ Query building
-- ✅ Connection pooling
-
-## 🎓 Learn More
-
-- [Sequelize Documentation](https://sequelize.org/docs/v6/)
-- [Express.js Best Practices](https://expressjs.com/en/advanced/best-practice-performance.html)
-- [React Documentation](https://react.dev/)
-- [Redux Toolkit](https://redux-toolkit.js.org/)
-
-## 📝 Common Tasks
-
-### Add New Category
-
-```bash
-curl -X POST http://localhost:3000/api/v1/categories \
-  -H "Content-Type: application/json" \
-  -d '{"name":"New Category","description":"Description here"}'
-```
-
-### Add New Product
-
-```bash
-curl -X POST http://localhost:3000/api/v1/products \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Product Name","price":99.99,"stock":100,"sku":"PRD-001"}'
-```
-
-### View Dashboard
-
-```bash
-curl http://localhost:3000/api/v1/reports/dashboard
-```
+---
 
 ## 🤝 Contributing
 
+Contributions are welcome! Please follow these steps:
+
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a pull request
+2. Create a feature branch: `git checkout -b feature/YourFeature`
+3. Commit your changes: `git commit -m 'Add YourFeature'`
+4. Push to the branch: `git push origin feature/YourFeature`
+5. Open a Pull Request
+
+---
 
 ## 📄 License
 
-MIT License
-
-## 👨‍💻 Support
-
-For support:
-
-1. Check troubleshooting section above
-2. Review console logs for errors
-3. Verify all prerequisites are met
-4. Open an issue in the repository
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## ✅ Quick Checklist
+## 👨‍💻 Author
 
-Before starting:
-
-- [ ] Node.js installed
-- [ ] MySQL installed and running
-- [ ] `.env` file configured
-- [ ] Dependencies installed
-- [ ] Database initialized
-
-For development:
-
-- [ ] Backend running on port 3000
-- [ ] Frontend running on port 5173
-- [ ] No console errors
-- [ ] Can create/edit/delete data
+**Your Name**
+- Portfolio: [your-portfolio.com](https://your-portfolio.com)
+- LinkedIn: [linkedin.com/in/your-profile](https://linkedin.com/in/your-profile)
+- GitHub: [@your-username](https://github.com/your-username)
 
 ---
 
-**Built with ❤️ using React, Express, and Sequelize ORM**
+## 📞 Support
 
-**System Version:** 2.0.0 (Sequelize ORM + Clean Architecture)
+For issues or questions:
+- Open an issue on [GitHub Issues](https://github.com/your-username/inventory-management-system/issues)
+- Email: your-email@example.com
+
+---
+
+## 🙏 Acknowledgments
+
+- [React](https://react.dev/) - UI Library
+- [Express.js](https://expressjs.com/) - Backend Framework
+- [Sequelize](https://sequelize.org/) - ORM
+- [Cloudinary](https://cloudinary.com/) - Image Management
+- [TanStack Table](https://tanstack.com/table) - Data Tables
+- [Tailwind CSS](https://tailwindcss.com/) - CSS Framework
+
+---
+
+## 📈 Project Status
+
+✅ **Production Ready** - All core features implemented and tested
+
+### Roadmap
+- [ ] Multi-warehouse support
+- [ ] Barcode scanning
+- [ ] Email notifications
+- [ ] PDF export for invoices
+- [ ] Advanced reporting with charts
+- [ ] Mobile app (React Native)
+
+---
+
+**⭐ If you find this project useful, please consider giving it a star!**
