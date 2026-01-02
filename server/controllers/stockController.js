@@ -7,14 +7,16 @@ class StockController {
       const stocks = await stockModel.getAll();
 
       // Enrich stocks with product information
-      const enrichedStocks = stocks.map((stock) => {
-        const product = productModel.getById(stock.productId);
-        return {
-          ...stock,
-          productName: product && product.id ? product.name : "Unknown",
-          productSku: product && product.id ? product.sku : "",
-        };
-      });
+      const enrichedStocks = await Promise.all(
+        stocks.map(async (stock) => {
+          const product = await productModel.getById(stock.productId);
+          return {
+            ...stock,
+            productName: product && product.id ? product.name : "Unknown",
+            productSku: product && product.id ? product.sku : "",
+          };
+        })
+      );
 
       return res.status(200).json({ success: true, data: enrichedStocks });
     } catch (error) {
@@ -36,7 +38,7 @@ class StockController {
       }
 
       // Add product information
-      const product = productModel.getById(stock.productId);
+      const product = await productModel.getById(stock.productId);
       stock.productName = product && product.id ? product.name : "Unknown";
       stock.productSku = product && product.id ? product.sku : "";
 
@@ -72,16 +74,18 @@ class StockController {
       const lowStocks = await stockModel.getLowStockProducts(minThreshold);
 
       // Enrich with product information
-      const enrichedStocks = lowStocks.map((stock) => {
-        const product = productModel.getById(stock.productId);
-        return {
-          ...stock,
-          productName: product && product.id ? product.name : "Unknown",
-          productSku: product && product.id ? product.sku : "",
-        };
-      });
+      const enrichedStocks = await Promise.all(
+        lowStocks.map(async (stock) => {
+          const product = await productModel.getById(stock.productId);
+          return {
+            ...stock,
+            productName: product && product.id ? product.name : "Unknown",
+            productSku: product && product.id ? product.sku : "",
+          };
+        })
+      );
 
-      return res.status(200).json(enrichedStocks);
+      return res.status(200).json({ success: true, data: enrichedStocks });
     } catch (error) {
       console.error("Error fetching low stock products:", error);
       return res.status(500).json({

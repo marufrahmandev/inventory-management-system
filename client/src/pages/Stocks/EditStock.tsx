@@ -28,8 +28,8 @@ type StockFormData = z.infer<typeof stockSchema>;
 function EditStock() {
   const { id } = useParams<{ id: string }>();
   const [updateStock] = useUpdateStockMutation();
-  const { data: stock, isLoading } = useGetStockByIdQuery(id!);
-  const { data: products } = useGetProductsQuery({});
+  const { data: stock, isLoading, isError } = useGetStockByIdQuery(id!);
+  const { data: productsData } = useGetProductsQuery({});
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -47,7 +47,14 @@ function EditStock() {
   });
 
   const selectedProductId = watch("productId");
-  const selectedProduct = products?.data?.find((p: any) => p.id === selectedProductId);
+  const products = productsData?.data || [];
+  const selectedProduct = products.find((p: any) => p.id === selectedProductId);
+
+  // Prepare product options for Select component
+  const productOptions = products.map((product: any) => ({
+    value: product.id,
+    label: `${product.name} (Current Stock: ${product.stock || 0})`,
+  }));
 
   useEffect(() => {
     setPageTitle("Edit Stock");
@@ -55,14 +62,15 @@ function EditStock() {
 
   useEffect(() => {
     if (stock) {
+      const stockData = (stock as any).data || stock;
       reset({
-        productId: stock.productId,
-        quantity: stock.quantity.toString(),
-        location: stock.location || "",
-        warehouseSection: stock.warehouseSection || "",
-        batchNumber: stock.batchNumber || "",
-        expiryDate: stock.expiryDate ? stock.expiryDate.split('T')[0] : "",
-        notes: stock.notes || "",
+        productId: stockData.productId || "",
+        quantity: stockData.quantity ? String(stockData.quantity) : "",
+        location: stockData.location || "",
+        warehouseSection: stockData.warehouseSection || "",
+        batchNumber: stockData.batchNumber || "",
+        expiryDate: stockData.expiryDate ? stockData.expiryDate.split('T')[0] : "",
+        notes: stockData.notes || "",
       });
     }
   }, [stock, reset]);
@@ -75,17 +83,26 @@ function EditStock() {
         quantity: parseInt(data.quantity),
       };
 
-      await updateStock(payload).unwrap();
-      toast.success("Stock updated successfully!", toastConfig);
-      setTimeout(() => navigate("/stocks"), 1500);
+      const response = await updateStock(payload);
+      if (!response.error) {
+        toast.success("Stock updated successfully!", toastConfig.success);
+        setTimeout(() => navigate("/stocks"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to update stock";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to update stock:", error);
-      toast.error(error?.data?.message || "Failed to update stock", toastConfig);
+      toast.error(error?.data?.message || "Failed to update stock", toastConfig.error);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading stock...</div>;
+  }
+
+  if (isError || !stock) {
+    return <div className="text-center py-10 text-red-600">Stock not found</div>;
   }
 
   return (
@@ -107,18 +124,13 @@ function EditStock() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Select
             label="Product"
-            {...register("productId")}
-            error={errors.productId?.message}
             required
+            error={errors.productId?.message as string}
+            options={productOptions}
+            placeholder="Select Product"
             disabled
-          >
-            <option value="">-- Select Product --</option>
-            {products?.data?.map((product: any) => (
-              <option key={product.id} value={product.id}>
-                {product.name} (Current Stock: {product.stock})
-              </option>
-            ))}
-          </Select>
+            {...register("productId")}
+          />
 
           {selectedProduct && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

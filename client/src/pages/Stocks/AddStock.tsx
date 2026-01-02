@@ -27,7 +27,7 @@ type StockFormData = z.infer<typeof stockSchema>;
 
 function AddStock() {
   const [addStock] = useAddStockMutation();
-  const { data: products } = useGetProductsQuery({});
+  const { data: productsData } = useGetProductsQuery({});
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -53,7 +53,14 @@ function AddStock() {
   });
 
   const selectedProductId = watch("productId");
-  const selectedProduct = products?.data?.find((p: any) => p.id === selectedProductId);
+  const products = productsData?.data || [];
+  const selectedProduct = products.find((p: any) => p.id === selectedProductId);
+
+  // Prepare product options for Select component
+  const productOptions = products.map((product: any) => ({
+    value: product.id,
+    label: `${product.name} (Current Stock: ${product.stock || 0})`,
+  }));
 
   useEffect(() => {
     setPageTitle("Add Stock");
@@ -66,12 +73,17 @@ function AddStock() {
         quantity: parseInt(data.quantity),
       };
 
-      await addStock(payload).unwrap();
-      toast.success("Stock added successfully!", toastConfig);
-      setTimeout(() => navigate("/stocks"), 1500);
+      const response = await addStock(payload);
+      if (!response.error) {
+        toast.success("Stock added successfully!", toastConfig.success);
+        setTimeout(() => navigate("/stocks"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to add stock";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to add stock:", error);
-      toast.error(error?.data?.message || "Failed to add stock", toastConfig);
+      toast.error(error?.data?.message || "Failed to add stock", toastConfig.error);
     }
   };
 
@@ -94,17 +106,12 @@ function AddStock() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Select
             label="Product"
-            {...register("productId")}
-            error={errors.productId?.message}
             required
-          >
-            <option value="">-- Select Product --</option>
-            {products?.data?.map((product: any) => (
-              <option key={product.id} value={product.id}>
-                {product.name} (Current Stock: {product.stock})
-              </option>
-            ))}
-          </Select>
+            error={errors.productId?.message as string}
+            options={productOptions}
+            placeholder="Select Product"
+            {...register("productId")}
+          />
 
           {selectedProduct && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
