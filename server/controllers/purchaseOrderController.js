@@ -2,32 +2,31 @@ const purchaseOrderModel = require("../models/purchaseOrderModel");
 const productModel = require("../models/productModel");
 const supplierModel = require("../models/supplierModel");
 
-// Helper function to sync supplier master data from purchase order form
-const syncSupplierFromOrderBody = async (req, res) => {
-  const { supplierId, supplierName, supplierEmail, supplierPhone, supplierAddress } = req.body;
-
-  if (supplierId) {
-    try {
-      const updateData = {};
-      if ("supplierName" in req.body) updateData.name = supplierName || null;
-      if ("supplierEmail" in req.body) updateData.email = supplierEmail || null;
-      if ("supplierPhone" in req.body) updateData.phone = supplierPhone || null;
-      if ("supplierAddress" in req.body) updateData.address = supplierAddress || null;
-
-      if (Object.keys(updateData).length > 0) {
-        await supplierModel.update(supplierId, updateData);
-      }
-    } catch (error) {
-      console.error("Error syncing supplier master data:", error);
-      res.status(500).json({
-        message: "Error syncing supplier master data",
-        error: error.message,
-      });
-      return false;
-    }
+// Load current supplier data from database to ensure consistency
+// Returns supplier snapshot fields or null if no supplierId
+async function loadSupplierSnapshot(supplierId) {
+  if (!supplierId || String(supplierId).trim() === "") {
+    return null;
   }
-  return true;
-};
+
+  try {
+    const supplier = await supplierModel.getById(supplierId);
+    if (!supplier || !supplier.id) {
+      return null;
+    }
+
+    // Return the CURRENT supplier data from master record
+    return {
+      supplierName: supplier.name || "",
+      supplierEmail: supplier.email || "",
+      supplierPhone: supplier.phone || "",
+      supplierAddress: supplier.address || "",
+    };
+  } catch (error) {
+    console.error("Error loading supplier snapshot:", error);
+    return null;
+  }
+}
 
 class PurchaseOrderController {
   async getAll(req, res) {
@@ -80,7 +79,7 @@ class PurchaseOrderController {
 
   async create(req, res) {
     try {
-      const {
+      let {
         orderNumber,
         supplierId,
         supplierName,
@@ -98,16 +97,47 @@ class PurchaseOrderController {
         notes,
       } = req.body;
 
+      // Auto-create supplier if no supplierId but supplier details provided
+      if ((!supplierId || String(supplierId).trim() === "") && supplierName && String(supplierName).trim() !== "") {
+        try {
+          const newSupplier = await supplierModel.create({
+            name: supplierName,
+            email: supplierEmail || null,
+            phone: supplierPhone || null,
+            address: supplierAddress || null,
+            status: "active",
+          });
+          supplierId = newSupplier.id;
+          console.log(`Auto-created supplier: ${newSupplier.id} - ${newSupplier.name}`);
+        } catch (error) {
+          console.error("Error auto-creating supplier:", error);
+          // Continue without supplierId if creation fails
+        }
+      }
+
+      // Load current supplier data if supplierId is provided
+      let supplierSnapshot = null;
+      if (supplierId && String(supplierId).trim() !== "") {
+        supplierSnapshot = await loadSupplierSnapshot(supplierId);
+        if (!supplierSnapshot) {
+          return res.status(400).json({ message: "Invalid supplier ID" });
+        }
+      } else {
+        // Use form data for guest suppliers (no supplierId)
+        supplierSnapshot = {
+          supplierName: supplierName || "",
+          supplierEmail: supplierEmail || "",
+          supplierPhone: supplierPhone || "",
+          supplierAddress: supplierAddress || "",
+        };
+      }
+
       // Validate required fields
-      if (!orderNumber || !supplierName || !items || items.length === 0) {
+      if (!orderNumber || !supplierSnapshot.supplierName || !items || items.length === 0) {
         return res.status(400).json({
           message: "Order number, supplier name, and items are required",
         });
       }
-
-      // Sync supplier master record from purchase order form (if supplierId present)
-      const ok = await syncSupplierFromOrderBody(req, res);
-      if (!ok) return;
 
       // Validate products exist and enrich items with product names
       const enrichedItems = [];
@@ -136,10 +166,7 @@ class PurchaseOrderController {
       const purchaseOrderData = {
         orderNumber,
         supplierId: supplierId || null,
-        supplierName: supplierName || "",
-        supplierEmail: supplierEmail || "",
-        supplierPhone: supplierPhone || "",
-        supplierAddress: supplierAddress || "",
+        ...supplierSnapshot, // Use CURRENT supplier data from database or guest data from form
         orderDate: orderDate || new Date().toISOString(),
         expectedDate: expectedDate || null,
         items: enrichedItems,
@@ -186,10 +213,6 @@ class PurchaseOrderController {
         return res.status(404).json({ message: "Purchase order not found" });
       }
 
-      // Sync supplier master record from purchase order form (if supplierId present)
-      const ok = await syncSupplierFromOrderBody(req, res);
-      if (!ok) return;
-
       const {
         orderNumber,
         supplierId,
@@ -207,6 +230,23 @@ class PurchaseOrderController {
         status,
         notes,
       } = req.body;
+
+      // Load current supplier data if supplierId is provided
+      let supplierSnapshot = null;
+      if (supplierId && String(supplierId).trim() !== "") {
+        supplierSnapshot = await loadSupplierSnapshot(supplierId);
+        if (!supplierSnapshot) {
+          return res.status(400).json({ message: "Invalid supplier ID" });
+        }
+      } else {
+        // Use form data for guest suppliers (no supplierId)
+        supplierSnapshot = {
+          supplierName: supplierName || "",
+          supplierEmail: supplierEmail || "",
+          supplierPhone: supplierPhone || "",
+          supplierAddress: supplierAddress || "",
+        };
+      }
 
       // Enrich items with product names if items are provided
       let enrichedItems = items;
@@ -232,10 +272,7 @@ class PurchaseOrderController {
       const purchaseOrderData = {
         orderNumber,
         supplierId: supplierId === "" ? null : (supplierId ?? null),
-        supplierName: supplierName || "",
-        supplierEmail: supplierEmail || "",
-        supplierPhone: supplierPhone || "",
-        supplierAddress: supplierAddress || "",
+        ...supplierSnapshot, // Use CURRENT supplier data from database or guest data from form
         orderDate,
         expectedDate: expectedDate || null,
         items: enrichedItems,

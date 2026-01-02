@@ -266,6 +266,8 @@ function EditPurchaseOrder() {
                 {...register("supplierName")}
                 error={errors.supplierName?.message}
                 required
+                readOnly={!!selectedSupplierId}
+                disabled={!!selectedSupplierId}
               />
 
               <Input
@@ -273,12 +275,16 @@ function EditPurchaseOrder() {
                 type="email"
                 {...register("supplierEmail")}
                 error={errors.supplierEmail?.message}
+                readOnly={!!selectedSupplierId}
+                disabled={!!selectedSupplierId}
               />
 
               <Input
                 label="Supplier Phone"
                 {...register("supplierPhone")}
                 error={errors.supplierPhone?.message}
+                readOnly={!!selectedSupplierId}
+                disabled={!!selectedSupplierId}
               />
 
               <div className="md:col-span-2">
@@ -287,9 +293,16 @@ function EditPurchaseOrder() {
                   {...register("supplierAddress")}
                   error={errors.supplierAddress?.message}
                   rows={2}
+                  readOnly={!!selectedSupplierId}
+                  disabled={!!selectedSupplierId}
                 />
               </div>
             </div>
+            {selectedSupplierId && (
+              <p className="text-sm text-gray-500 mt-2">
+                Supplier details are read-only. To update, edit the supplier in the Suppliers page.
+              </p>
+            )}
           </div>
 
           {/* Order Items */}

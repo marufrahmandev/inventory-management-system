@@ -2,30 +2,30 @@ const salesOrderModel = require("../models/salesOrderModel");
 const productModel = require("../models/productModel");
 const customerModel = require("../models/customerModel");
 
-async function syncCustomerFromOrderBody(req, res) {
-  const { customerId } = req.body;
-  if (!customerId || String(customerId).trim() === "") return true;
-
-  const existingCustomer = await customerModel.getById(customerId);
-  if (!existingCustomer || !existingCustomer.id) {
-    res.status(400).json({ message: "Invalid customerId" });
-    return false;
+// Load current customer data from database to ensure consistency
+// Returns customer snapshot fields or null if no customerId
+async function loadCustomerSnapshot(customerId) {
+  if (!customerId || String(customerId).trim() === "") {
+    return null;
   }
 
-  const updateData = {};
+  try {
+    const customer = await customerModel.getById(customerId);
+    if (!customer || !customer.id) {
+      return null;
+    }
 
-  if ("customerName" in req.body) updateData.name = req.body.customerName;
-  if ("customerEmail" in req.body)
-    updateData.email = req.body.customerEmail === "" ? null : req.body.customerEmail;
-  if ("customerPhone" in req.body)
-    updateData.phone = req.body.customerPhone === "" ? null : req.body.customerPhone;
-  if ("customerAddress" in req.body)
-    updateData.address = req.body.customerAddress === "" ? null : req.body.customerAddress;
-
-  if (Object.keys(updateData).length === 0) return true;
-
-  await customerModel.update(customerId, updateData);
-  return true;
+    // Return the CURRENT customer data from master record
+    return {
+      customerName: customer.name || "",
+      customerEmail: customer.email || "",
+      customerPhone: customer.phone || "",
+      customerAddress: customer.address || "",
+    };
+  } catch (error) {
+    console.error("Error loading customer snapshot:", error);
+    return null;
+  }
 }
 
 class SalesOrderController {
@@ -92,13 +92,9 @@ class SalesOrderController {
 
   async create(req, res) {
     try {
-      // If a customerId is selected and user edited customer fields in the sales order form,
-      // sync those fields back to the customer master record.
-      const ok = await syncCustomerFromOrderBody(req, res);
-      if (!ok) return;
-
-      const {
+      let {
         orderNumber,
+        customerId,
         customerName,
         customerEmail,
         customerPhone,
@@ -114,8 +110,43 @@ class SalesOrderController {
         notes,
       } = req.body;
 
+      // Auto-create customer if no customerId but customer details provided
+      if ((!customerId || String(customerId).trim() === "") && customerName && String(customerName).trim() !== "") {
+        try {
+          const newCustomer = await customerModel.create({
+            name: customerName,
+            email: customerEmail || null,
+            phone: customerPhone || null,
+            address: customerAddress || null,
+            status: "active",
+          });
+          customerId = newCustomer.id;
+          console.log(`Auto-created customer: ${newCustomer.id} - ${newCustomer.name}`);
+        } catch (error) {
+          console.error("Error auto-creating customer:", error);
+          // Continue without customerId if creation fails
+        }
+      }
+
+      // Load current customer data if customerId is provided
+      let customerSnapshot = null;
+      if (customerId && String(customerId).trim() !== "") {
+        customerSnapshot = await loadCustomerSnapshot(customerId);
+        if (!customerSnapshot) {
+          return res.status(400).json({ message: "Invalid customer ID" });
+        }
+      } else {
+        // Use form data for guest customers (no customerId)
+        customerSnapshot = {
+          customerName: customerName || "",
+          customerEmail: customerEmail || "",
+          customerPhone: customerPhone || "",
+          customerAddress: customerAddress || "",
+        };
+      }
+
       // Validate required fields
-      if (!customerName || !items || items.length === 0) {
+      if (!customerSnapshot.customerName || !items || items.length === 0) {
         return res.status(400).json({
           message: "Customer name and items are required",
         });
@@ -146,22 +177,25 @@ class SalesOrderController {
       const calculatedTotal = calculatedSubtotal + (parseFloat(tax) || 0) - (parseFloat(discount) || 0);
 
       const salesOrderData = {
-        orderNumber,
-        customerId: req.body.customerId || null,
-        customerName,
-        customerEmail: customerEmail || "",
-        customerPhone: customerPhone || "",
-        customerAddress: customerAddress || "",
+        orderNumber: orderNumber || await salesOrderModel.getNextOrderNumber(),
+        customerId: customerId || null,
+        ...customerSnapshot, // Use CURRENT customer data from database or guest data from form
         orderDate: orderDate || new Date().toISOString(),
         deliveryDate: deliveryDate || null,
         items: enrichedItems,
-        subtotal: parseFloat(subtotal) || calculatedSubtotal,
-        tax: parseFloat(tax) || 0,
-        discount: parseFloat(discount) || 0,
-        total: parseFloat(total) || calculatedTotal,
         status: status || "pending",
         notes: notes || "",
       };
+
+      // Numeric fields: update based on presence (so 0 works correctly)
+      if ("subtotal" in req.body) salesOrderData.subtotal = Number(subtotal) || 0;
+      else salesOrderData.subtotal = calculatedSubtotal;
+      
+      if ("tax" in req.body) salesOrderData.tax = Number(tax) || 0;
+      if ("discount" in req.body) salesOrderData.discount = Number(discount) || 0;
+      
+      if ("total" in req.body) salesOrderData.total = Number(total) || 0;
+      else salesOrderData.total = calculatedTotal;
 
       const newSalesOrder = await salesOrderModel.create(salesOrderData);
 
@@ -192,10 +226,6 @@ class SalesOrderController {
         return res.status(404).json({ message: "Sales order not found" });
       }
 
-      // Sync customer master record from sales order form (if customerId present)
-      const ok = await syncCustomerFromOrderBody(req, res);
-      if (!ok) return;
-
       const {
         orderNumber,
         customerId,
@@ -213,6 +243,23 @@ class SalesOrderController {
         status,
         notes,
       } = req.body;
+
+      // Load current customer data if customerId is provided
+      let customerSnapshot = null;
+      if (customerId && String(customerId).trim() !== "") {
+        customerSnapshot = await loadCustomerSnapshot(customerId);
+        if (!customerSnapshot) {
+          return res.status(400).json({ message: "Invalid customer ID" });
+        }
+      } else {
+        // Use form data for guest customers (no customerId)
+        customerSnapshot = {
+          customerName: customerName || "",
+          customerEmail: customerEmail || "",
+          customerPhone: customerPhone || "",
+          customerAddress: customerAddress || "",
+        };
+      }
 
       // Enrich items with product names if items are provided
       let enrichedItems = items;
@@ -237,13 +284,8 @@ class SalesOrderController {
 
       const salesOrderData = {
         orderNumber,
-        // Always allow customerId to be updated; treat empty string as null
         customerId: customerId === "" ? null : (customerId ?? null),
-        // Always update customer snapshot fields from form (not from DB)
-        customerName: customerName || "",
-        customerEmail: customerEmail || "",
-        customerPhone: customerPhone || "",
-        customerAddress: customerAddress || "",
+        ...customerSnapshot, // Use CURRENT customer data from database or guest data from form
         orderDate,
         deliveryDate: deliveryDate || null,
         items: enrichedItems,

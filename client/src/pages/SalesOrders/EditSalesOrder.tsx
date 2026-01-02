@@ -279,6 +279,8 @@ function EditSalesOrder() {
                 {...register("customerName")}
                 error={errors.customerName?.message}
                 required
+                readOnly={!!selectedCustomerId}
+                disabled={!!selectedCustomerId}
               />
 
               <Input
@@ -286,12 +288,16 @@ function EditSalesOrder() {
                 type="email"
                 {...register("customerEmail")}
                 error={errors.customerEmail?.message}
+                readOnly={!!selectedCustomerId}
+                disabled={!!selectedCustomerId}
               />
 
               <Input
                 label="Customer Phone"
                 {...register("customerPhone")}
                 error={errors.customerPhone?.message}
+                readOnly={!!selectedCustomerId}
+                disabled={!!selectedCustomerId}
               />
 
               <div className="md:col-span-2">
@@ -300,9 +306,16 @@ function EditSalesOrder() {
                   {...register("customerAddress")}
                   error={errors.customerAddress?.message}
                   rows={2}
+                  readOnly={!!selectedCustomerId}
+                  disabled={!!selectedCustomerId}
                 />
               </div>
             </div>
+            {selectedCustomerId && (
+              <p className="text-sm text-gray-500 mt-2">
+                Customer details are read-only. To update, edit the customer in the Customers page.
+              </p>
+            )}
           </div>
 
           {/* Order Items */}
