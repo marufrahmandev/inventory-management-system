@@ -143,7 +143,8 @@ function SalesOrders() {
     setDeletingRowId(null);
     
     if (response.error) {
-      toast.error("Error deleting sales order", toastConfig.error);
+      const errorMsg = (response.error as any)?.data?.message || "Error deleting sales order";
+      toast.error(errorMsg, toastConfig.error);
     } else {
       toast.success("Sales order deleted successfully", toastConfig.success);
     }

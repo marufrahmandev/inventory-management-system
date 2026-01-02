@@ -64,6 +64,13 @@ export const salesOrdersApiSlice = createApi({
       getSalesOrderById: builder.query({
         query: (id: string) => `/sales-orders/${id}`,
         providesTags: (result, error, id) => [{ type: "SalesOrder", id }],
+        transformResponse: (response: any) => {
+          // Handle both wrapped and unwrapped responses
+          if (response.success && response.data) {
+            return response;
+          }
+          return { success: true, data: response };
+        },
       }),
       addSalesOrder: builder.mutation({
         query: (salesOrderData) => ({

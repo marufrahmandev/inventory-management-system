@@ -6,7 +6,7 @@ import { useGetSalesOrderByIdQuery } from "../../state/salesOrders/salesOrderSli
 
 function ViewSalesOrder() {
   const { id } = useParams<{ id: string }>();
-  const { data: salesOrder, isLoading } = useGetSalesOrderByIdQuery(id!);
+  const { data: salesOrderData, isLoading, isError } = useGetSalesOrderByIdQuery(id!);
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -15,17 +15,19 @@ function ViewSalesOrder() {
 
   useEffect(() => {
     setPageTitle("View Sales Order");
-  }, []);
+  }, [setPageTitle]);
 
   const handlePrint = () => {
     window.print();
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading sales order...</div>;
   }
 
-  if (!salesOrder) {
+  const salesOrder = (salesOrderData as any)?.data || salesOrderData;
+
+  if (isError || !salesOrder || !salesOrder.id) {
     return (
       <div className="text-center py-10">
         <p className="text-red-600">Sales order not found</p>

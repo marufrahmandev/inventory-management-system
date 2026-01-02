@@ -1,4 +1,4 @@
-const { SalesOrder, SalesOrderItem, Product } = require("./index");
+const { SalesOrder, SalesOrderItem, Product, Customer } = require("./index");
 const database = require("../config/database");
 const { Op } = require("sequelize");
 
@@ -13,23 +13,34 @@ class SalesOrderModel {
   async getAll() {
     try {
       const orders = await SalesOrder.findAll({
-        include: [{
-          model: SalesOrderItem,
-          as: "items",
-          include: [{
-            model: Product,
-            attributes: ["id", "name", "sku"],
-          }],
-        }],
+        include: [
+          {
+            model: Customer,
+            attributes: ["id", "name", "email", "phone"],
+            required: false,
+          },
+          {
+            model: SalesOrderItem,
+            as: "items",
+            include: [{
+              model: Product,
+              attributes: ["id", "name", "sku"],
+            }],
+          },
+        ],
         order: [["orderDate", "DESC"]],
       });
       
-      // Transform to plain objects with items array
+      // Transform to plain objects with items array and customer name
       return orders.map(order => {
         const data = order.toJSON();
         return {
           ...data,
+          // Keep sales order snapshot fields (customerName/email/phone/address) as-is.
+          // Expose the linked customer (if any) separately.
+          customer: data.Customer || null,
           items: data.items || [],
+          Customer: undefined, // Remove nested Customer object
         };
       });
     } catch (error) {
@@ -44,28 +55,39 @@ class SalesOrderModel {
   async getById(id) {
     try {
       const order = await SalesOrder.findByPk(id, {
-        include: [{
-          model: SalesOrderItem,
-          as: "items",
-          include: [{
-            model: Product,
-            attributes: ["id", "name", "sku"],
-          }],
-        }],
+        include: [
+          {
+            model: Customer,
+            attributes: ["id", "name", "email", "phone", "address"],
+            required: false,
+          },
+          {
+            model: SalesOrderItem,
+            as: "items",
+            include: [{
+              model: Product,
+              attributes: ["id", "name", "sku"],
+            }],
+          },
+        ],
       });
       
       if (!order) {
-        return { success: false, message: "Sales order not found" };
+        return null;
       }
       
       const data = order.toJSON();
       return {
         ...data,
+        // Keep sales order snapshot fields (customerName/email/phone/address) as-is.
+        // Expose the linked customer (if any) separately.
+        customer: data.Customer || null,
         items: data.items || [],
+        Customer: undefined, // Remove nested Customer object
       };
     } catch (error) {
       console.error("Error getting sales order by ID:", error);
-      return { success: false, message: "Error reading sales order" };
+      return null;
     }
   }
 

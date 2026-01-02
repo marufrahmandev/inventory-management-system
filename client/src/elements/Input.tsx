@@ -6,20 +6,38 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   labelClassName?: string;
   inputClassName?: string;
+  containerClassName?: string;
+  layout?: "inline" | "stacked";
 };
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   (
-    { label, error, required = false, labelClassName = "", inputClassName = "", ...rest },
+    {
+      label,
+      error,
+      required = false,
+      labelClassName = "",
+      inputClassName = "",
+      containerClassName = "",
+      layout = "inline",
+      ...rest
+    },
     ref
   ) => {
+    const isStacked = layout === "stacked";
     return (
-      <div className="flex space-x-5  justify-start  items-center">
+      <div
+        className={classNames(
+          isStacked ? "flex flex-col gap-1 items-start" : "flex space-x-5 justify-start items-center"
+        )}
+      >
         {label && (
           <label
             htmlFor={(rest as any)?.name}
             className={classNames(
-              "block text-sm/6 font-medium text-gray-900 min-w-[150px]",
+              isStacked
+                ? "block text-sm/6 font-medium text-gray-900"
+                : "block text-sm/6 font-medium text-gray-900 min-w-[150px]",
               labelClassName || "text-gray-900"
             )}
           >
@@ -28,7 +46,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
 
-        <div className="mt-2 flex-grow sm:max-w-[50%]">
+        <div
+          className={classNames(
+            isStacked ? "w-full" : "mt-2 flex-grow sm:max-w-[50%]",
+            containerClassName
+          )}
+        >
           <input
             ref={ref}
             

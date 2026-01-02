@@ -2,7 +2,7 @@ import { ArrowLeft, Plus, Trash } from "lucide-react";
 import React, { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 import Button from "../../elements/Button";
 import Input from "../../elements/Input";
@@ -27,6 +27,7 @@ const salesOrderSchema = z.object({
   orderDate: z.string().trim().min(1, { message: "Order date is required" }),
   deliveryDate: z.string().trim().optional(),
   status: z.string().trim().min(1, { message: "Status is required" }),
+  taxRate: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   items: z.array(z.object({
     productId: z.string().trim().min(1, { message: "Product is required" }),
@@ -40,9 +41,9 @@ type SalesOrderFormData = z.infer<typeof salesOrderSchema>;
 function EditSalesOrder() {
   const { id } = useParams<{ id: string }>();
   const [updateSalesOrder] = useUpdateSalesOrderMutation();
-  const { data: salesOrder, isLoading } = useGetSalesOrderByIdQuery(id!);
-  const { data: products } = useGetProductsQuery({});
-  const { data: customers } = useGetCustomersQuery();
+  const { data: salesOrderData, isLoading, isError } = useGetSalesOrderByIdQuery(id!);
+  const { data: productsData } = useGetProductsQuery({});
+  const { data: customersData } = useGetCustomersQuery();
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -59,6 +60,9 @@ function EditSalesOrder() {
     formState: { errors, isSubmitting },
   } = useForm<SalesOrderFormData>({
     resolver: zodResolver(salesOrderSchema),
+    defaultValues: {
+      taxRate: "0",
+    },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -66,48 +70,90 @@ function EditSalesOrder() {
     name: "items",
   });
 
-  const items = watch("items");
+  const items = watch("items") || [];
+  const products = productsData?.data || [];
+  const customers = customersData?.data || [];
+  const salesOrder = (salesOrderData as any)?.data || salesOrderData;
 
   useEffect(() => {
     setPageTitle("Edit Sales Order");
-  }, []);
+  }, [setPageTitle]);
 
   useEffect(() => {
-    if (salesOrder) {
-      const order = salesOrder;
+    if (salesOrder && salesOrder.id) {
+      const existingSubtotal =
+        typeof salesOrder.subtotal === "number"
+          ? salesOrder.subtotal
+          : parseFloat(String(salesOrder.subtotal || "0")) || 0;
+      const existingTax =
+        typeof salesOrder.tax === "number"
+          ? salesOrder.tax
+          : parseFloat(String(salesOrder.tax || "0")) || 0;
+
+      const inferredTaxRate =
+        existingSubtotal > 0 ? ((existingTax / existingSubtotal) * 100).toFixed(2) : "0";
+
       reset({
-        orderNumber: order.orderNumber,
-        customerId: order.customerId || "",
-        customerName: order.customerName,
-        customerEmail: order.customerEmail || "",
-        customerPhone: order.customerPhone || "",
-        customerAddress: order.customerAddress || "",
-        orderDate: order.orderDate ? order.orderDate.split('T')[0] : "",
-        deliveryDate: order.deliveryDate ? order.deliveryDate.split('T')[0] : "",
-        status: order.status,
-        notes: order.notes || "",
-        items: order.items?.map((item: any) => ({
-          productId: item.productId,
-          quantity: item.quantity.toString(),
-          price: item.price.toString(),
-        })) || [],
+        orderNumber: salesOrder.orderNumber || "",
+        customerId: salesOrder.customerId || "",
+        customerName: salesOrder.customerName || "",
+        customerEmail: salesOrder.customerEmail || "",
+        customerPhone: salesOrder.customerPhone || "",
+        customerAddress: salesOrder.customerAddress || "",
+        orderDate: salesOrder.orderDate ? salesOrder.orderDate.split('T')[0] : "",
+        deliveryDate: salesOrder.deliveryDate ? salesOrder.deliveryDate.split('T')[0] : "",
+        status: salesOrder.status || "pending",
+        taxRate: inferredTaxRate,
+        notes: salesOrder.notes || "",
+        items: salesOrder.items?.map((item: any) => ({
+          productId: item.productId || "",
+          quantity: item.quantity ? String(item.quantity) : "",
+          price: item.price ? String(item.price) : "",
+        })) || [{ productId: "", quantity: "", price: "" }],
       });
     }
   }, [salesOrder, reset]);
 
-  const calculateSubtotal = () => {
-    return items?.reduce((sum, item) => {
-      const quantity = parseFloat(item.quantity) || 0;
-      const price = parseFloat(item.price) || 0;
-      return sum + (quantity * price);
-    }, 0) || 0;
+  const selectedCustomerId = watch("customerId");
+  const isCustomerSelected = Boolean(selectedCustomerId && selectedCustomerId.trim());
+
+  // Auto-fill customer details when customer is selected
+  useEffect(() => {
+    if (selectedCustomerId && customers) {
+      const customer = customers.find((c: any) => c.id === selectedCustomerId);
+      if (customer) {
+        setValue("customerName", customer.name);
+        setValue("customerEmail", customer.email || "");
+        setValue("customerPhone", customer.phone || "");
+        setValue("customerAddress", customer.address || "");
+      }
+    }
+  }, [selectedCustomerId, customers, setValue]);
+
+  // Auto-fill price when product is selected
+  const handleProductChange = (index: number, productId: string) => {
+    if (productId && products) {
+      const product = products.find((p: any) => p.id === productId);
+      if (product) {
+        setValue(`items.${index}.price`, product.price?.toString?.() || String(product.price || ""));
+      }
+    }
   };
+
+  // Calculate totals (compute every render; avoids stale memos with field arrays)
+  const subtotal = items.reduce((sum, item) => {
+    const quantity = parseFloat(item?.quantity || "0") || 0;
+    const price = parseFloat(item?.price || "0") || 0;
+    return sum + quantity * price;
+  }, 0);
+
+  const taxRate = watch("taxRate") || "0";
+  const taxPercent = Math.max(0, parseFloat(taxRate || "0") || 0);
+  const tax = subtotal * (taxPercent / 100);
+  const total = subtotal + tax;
 
   const onSubmit = async (data: SalesOrderFormData) => {
     try {
-      const subtotal = calculateSubtotal();
-      const tax = subtotal * 0.1;
-      const total = subtotal + tax;
 
       const payload = {
         id,
@@ -123,22 +169,27 @@ function EditSalesOrder() {
         total,
       };
 
-      await updateSalesOrder(payload).unwrap();
-      toast.success("Sales order updated successfully!", toastConfig);
-      setTimeout(() => navigate("/sales-orders"), 1500);
+      const response = await updateSalesOrder(payload);
+      if (!response.error) {
+        toast.success("Sales order updated successfully!", toastConfig.success);
+        setTimeout(() => navigate("/sales-orders"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to update sales order";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to update sales order:", error);
-      toast.error(error?.data?.message || "Failed to update sales order", toastConfig);
+      toast.error(error?.data?.message || "Failed to update sales order", toastConfig.error);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading sales order...</div>;
   }
 
-  const subtotal = calculateSubtotal();
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  if (isError || !salesOrder || !salesOrder.id) {
+    return <div className="text-center py-10 text-red-600">Sales order not found</div>;
+  }
 
   return (
     <div className="max-w-5xl">
@@ -166,18 +217,25 @@ function EditSalesOrder() {
               required
             />
 
-            <Select
-              label="Status"
-              {...register("status")}
-              error={errors.status?.message}
-              required
-            >
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="processing">Processing</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </Select>
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Status"
+                  options={[
+                    { value: "pending", label: "Pending" },
+                    { value: "confirmed", label: "Confirmed" },
+                    { value: "processing", label: "Processing" },
+                    { value: "completed", label: "Completed" },
+                    { value: "cancelled", label: "Cancelled" },
+                  ]}
+                  error={errors.status?.message}
+                  required
+                  {...field}
+                />
+              )}
+            />
 
             <Input
               type="date"
@@ -199,11 +257,30 @@ function EditSalesOrder() {
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Controller
+                name="customerId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Select Customer (Optional)"
+                    options={[
+                      { value: "", label: "-- Select Customer --" },
+                      ...customers.map((customer: any) => ({
+                        value: customer.id,
+                        label: customer.name,
+                      })),
+                    ]}
+                    {...field}
+                  />
+                )}
+              />
+
               <Input
                 label="Customer Name"
                 {...register("customerName")}
                 error={errors.customerName?.message}
                 required
+                readOnly={isCustomerSelected}
               />
 
               <Input
@@ -211,12 +288,14 @@ function EditSalesOrder() {
                 type="email"
                 {...register("customerEmail")}
                 error={errors.customerEmail?.message}
+                readOnly={isCustomerSelected}
               />
 
               <Input
                 label="Customer Phone"
                 {...register("customerPhone")}
                 error={errors.customerPhone?.message}
+                readOnly={isCustomerSelected}
               />
 
               <div className="md:col-span-2">
@@ -225,6 +304,7 @@ function EditSalesOrder() {
                   {...register("customerAddress")}
                   error={errors.customerAddress?.message}
                   rows={2}
+                  readOnly={isCustomerSelected}
                 />
               </div>
             </div>
@@ -246,61 +326,101 @@ function EditSalesOrder() {
 
             <div className="space-y-4">
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-12 gap-4 items-start border p-4 rounded">
-                  <div className="col-span-5">
-                    <Select
-                      label="Product"
-                      {...register(`items.${index}.productId`)}
-                      error={errors.items?.[index]?.productId?.message}
-                      required
-                    >
-                      <option value="">-- Select Product --</option>
-                      {products?.data?.map((product: any) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
+                <div key={field.id} className="border p-4 rounded-lg bg-gray-50">
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Product Field */}
+                    <div>
+                      <Controller
+                        name={`items.${index}.productId`}
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            label="Product"
+                            layout="stacked"
+                            containerClassName="w-full"
+                            inputClassName="py-2 text-base"
+                            options={[
+                              { value: "", label: "-- Select Product --" },
+                              ...products.map((product: any) => ({
+                                value: product.id,
+                                label: `${product.name} (Stock: ${product.stock || 0})`,
+                              })),
+                            ]}
+                            error={errors.items?.[index]?.productId?.message}
+                            required
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleProductChange(index, e.target.value);
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
 
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      label="Quantity"
-                      {...register(`items.${index}.quantity`)}
-                      error={errors.items?.[index]?.quantity?.message}
-                      required
-                    />
-                  </div>
+                    {/* Quantity, Price, Total Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div>
+                        <Input
+                          type="number"
+                          label="Quantity"
+                          layout="stacked"
+                          containerClassName="w-full"
+                          inputClassName="py-2 text-base"
+                          {...register(`items.${index}.quantity`, {
+                            valueAsNumber: false,
+                          })}
+                          error={errors.items?.[index]?.quantity?.message}
+                          required
+                          min="1"
+                          placeholder="0"
+                        />
+                      </div>
 
-                  <div className="col-span-3">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      label="Price"
-                      {...register(`items.${index}.price`)}
-                      error={errors.items?.[index]?.price?.message}
-                      required
-                    />
-                  </div>
+                      <div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          label="Price"
+                          layout="stacked"
+                          containerClassName="w-full"
+                          inputClassName="py-2 text-base min-w-[140px]"
+                          {...register(`items.${index}.price`, {
+                            valueAsNumber: false,
+                          })}
+                          error={errors.items?.[index]?.price?.message}
+                          required
+                          min="0"
+                          placeholder="0.00"
+                        />
+                      </div>
 
-                  <div className="col-span-2 flex items-end">
-                    <div className="w-full">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total</label>
-                      <div className="text-lg font-semibold">
-                        ${((parseFloat(items?.[index]?.quantity) || 0) * (parseFloat(items?.[index]?.price) || 0)).toFixed(2)}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Total
+                        </label>
+                        <div className="text-xl font-bold text-gray-900 py-2">
+                          $
+                          {(
+                            (parseFloat(items[index]?.quantity || "0") || 0) *
+                            (parseFloat(items[index]?.price || "0") || 0)
+                          ).toFixed(2)}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            onClick={() => remove(index)}
+                            title="Remove item"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    {fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() => remove(index)}
-                        className="ml-2"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -315,8 +435,22 @@ function EditSalesOrder() {
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="font-semibold">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (10%):</span>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Tax (%):</span>
+                    <div className="w-28">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        label=""
+                        layout="stacked"
+                        containerClassName="w-full"
+                        inputClassName="py-2 text-sm"
+                        placeholder="0"
+                        {...register("taxRate")}
+                      />
+                    </div>
+                  </div>
                   <span className="font-semibold">${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
