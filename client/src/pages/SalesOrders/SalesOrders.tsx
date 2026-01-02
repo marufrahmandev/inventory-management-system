@@ -100,7 +100,7 @@ function SalesOrders() {
       header: "Actions",
       cell: (row) => {
         const order = row.row.original;
-        const canGenerateInvoice = order.status === "confirmed" || order.status === "completed";
+        const canGenerateInvoice = (order.status === "confirmed" || order.status === "completed") && !(order as any).hasInvoice;
         
         return (
           <div className="flex gap-2">

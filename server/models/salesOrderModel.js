@@ -1,4 +1,4 @@
-const { SalesOrder, SalesOrderItem, Product, Customer } = require("./index");
+const { SalesOrder, SalesOrderItem, Product, Customer, Invoice } = require("./index");
 const database = require("../config/database");
 const { Op } = require("sequelize");
 
@@ -60,17 +60,26 @@ class SalesOrderModel {
       });
       
       // Transform to plain objects with items array and customer name
-      return orders.map(order => {
+      const results = await Promise.all(orders.map(async (order) => {
         const data = order.toJSON();
+        
+        // Check if this sales order has any invoices
+        const invoiceCount = await Invoice.count({
+          where: { salesOrderId: order.id }
+        });
+        
         return {
           ...data,
           // Keep sales order snapshot fields (customerName/email/phone/address) as-is.
           // Expose the linked customer (if any) separately.
           customer: data.Customer || null,
           items: data.items || [],
+          hasInvoice: invoiceCount > 0,
           Customer: undefined, // Remove nested Customer object
         };
-      });
+      }));
+      
+      return results;
     } catch (error) {
       console.error("Error getting all sales orders:", error);
       return [];

@@ -28,6 +28,7 @@ const salesOrderSchema = z.object({
   deliveryDate: z.string().trim().optional(),
   status: z.string().trim().min(1, { message: "Status is required" }),
   taxRate: z.string().trim().optional(),
+  discount: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   items: z.array(z.object({
     productId: z.string().trim().min(1, { message: "Product is required" }),
@@ -104,6 +105,7 @@ function EditSalesOrder() {
         deliveryDate: salesOrder.deliveryDate ? salesOrder.deliveryDate.split('T')[0] : "",
         status: salesOrder.status || "pending",
         taxRate: inferredTaxRate,
+        discount: salesOrder.discount ? String(salesOrder.discount) : "0",
         notes: salesOrder.notes || "",
         items: salesOrder.items?.map((item: any) => ({
           productId: item.productId || "",
@@ -115,6 +117,7 @@ function EditSalesOrder() {
   }, [salesOrder, reset]);
 
   const selectedCustomerId = watch("customerId");
+  const discount = watch("discount");
 
   // Auto-fill customer details when customer is selected
   useEffect(() => {
@@ -149,7 +152,8 @@ function EditSalesOrder() {
   const taxRate = watch("taxRate") || "0";
   const taxPercent = Math.max(0, parseFloat(taxRate || "0") || 0);
   const tax = subtotal * (taxPercent / 100);
-  const total = subtotal + tax;
+  const discountAmount = Math.max(0, parseFloat(discount || "0") || 0);
+  const total = Math.max(0, subtotal + tax - discountAmount);
 
   const onSubmit = async (data: SalesOrderFormData) => {
     try {
@@ -164,7 +168,7 @@ function EditSalesOrder() {
         })),
         subtotal,
         tax,
-        discount: 0,
+        discount: discountAmount,
         total,
       };
 
@@ -460,6 +464,25 @@ function EditSalesOrder() {
                     </div>
                   </div>
                   <span className="font-semibold">${tax.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Discount:</span>
+                    <div className="w-28">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        label=""
+                        layout="stacked"
+                        containerClassName="w-full"
+                        inputClassName="py-2 text-sm"
+                        placeholder="0.00"
+                        min="0"
+                        {...register("discount")}
+                      />
+                    </div>
+                  </div>
+                  <span className="font-semibold text-orange-600">${discountAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Total:</span>
