@@ -76,14 +76,19 @@ function AddCustomer() {
         creditLimit: data.creditLimit ? parseFloat(data.creditLimit) : undefined,
       };
 
-      await addCustomer(payload).unwrap();
-      toast.success("Customer added successfully!", toastConfig);
-      setTimeout(() => navigate("/customers"), 1500);
+      const response = await addCustomer(payload);
+      if (!response.error) {
+        toast.success("Customer added successfully!", toastConfig.success);
+        setTimeout(() => navigate("/customers"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to add customer";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to add customer:", error);
       toast.error(
         error?.data?.message || "Failed to add customer",
-        toastConfig
+        toastConfig.error
       );
     }
   };
@@ -119,13 +124,15 @@ function AddCustomer() {
 
               <Select
                 label="Status"
-                {...register("status")}
-                error={errors.status?.message}
                 required
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </Select>
+                error={errors.status?.message as string}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+                placeholder="Select Status"
+                {...register("status")}
+              />
 
               <Input
                 type="email"

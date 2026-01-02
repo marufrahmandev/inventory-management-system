@@ -40,7 +40,7 @@ type SupplierFormData = z.infer<typeof supplierSchema>;
 function EditSupplier() {
   const { id } = useParams<{ id: string }>();
   const [updateSupplier] = useUpdateSupplierMutation();
-  const { data: supplier, isLoading } = useGetSupplierQuery(id!);
+  const { data: supplier, isLoading, isError } = useGetSupplierQuery(id!);
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -62,40 +62,50 @@ function EditSupplier() {
 
   useEffect(() => {
     if (supplier) {
+      const supplierData = (supplier as any).data || supplier;
       reset({
-        name: supplier.name,
-        email: supplier.email || "",
-        phone: supplier.phone || "",
-        address: supplier.address || "",
-        city: supplier.city || "",
-        state: supplier.state || "",
-        zipCode: supplier.zipCode || "",
-        country: supplier.country || "",
-        taxId: supplier.taxId || "",
-        paymentTerms: supplier.paymentTerms || "",
-        bankDetails: supplier.bankDetails || "",
-        notes: supplier.notes || "",
-        status: supplier.status,
+        name: supplierData.name || "",
+        email: supplierData.email || "",
+        phone: supplierData.phone || "",
+        address: supplierData.address || "",
+        city: supplierData.city || "",
+        state: supplierData.state || "",
+        zipCode: supplierData.zipCode || "",
+        country: supplierData.country || "",
+        taxId: supplierData.taxId || "",
+        paymentTerms: supplierData.paymentTerms || "",
+        bankDetails: supplierData.bankDetails || "",
+        notes: supplierData.notes || "",
+        status: supplierData.status || "active",
       });
     }
   }, [supplier, reset]);
 
   const onSubmit = async (data: SupplierFormData) => {
     try {
-      await updateSupplier({ id, ...data }).unwrap();
-      toast.success("Supplier updated successfully!", toastConfig);
-      setTimeout(() => navigate("/suppliers"), 1500);
+      const response = await updateSupplier({ id, ...data });
+      if (!response.error) {
+        toast.success("Supplier updated successfully!", toastConfig.success);
+        setTimeout(() => navigate("/suppliers"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to update supplier";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to update supplier:", error);
       toast.error(
         error?.data?.message || "Failed to update supplier",
-        toastConfig
+        toastConfig.error
       );
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading supplier...</div>;
+  }
+
+  if (isError || !supplier) {
+    return <div className="text-center py-10 text-red-600">Supplier not found</div>;
   }
 
   return (
@@ -129,13 +139,15 @@ function EditSupplier() {
 
               <Select
                 label="Status"
-                {...register("status")}
-                error={errors.status?.message}
                 required
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </Select>
+                error={errors.status?.message as string}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+                placeholder="Select Status"
+                {...register("status")}
+              />
 
               <Input
                 type="email"

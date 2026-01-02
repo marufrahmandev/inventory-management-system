@@ -23,7 +23,7 @@ class CustomerController {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      return res.status(200).json(customer);
+      return res.status(200).json({ success: true, data: customer });
     } catch (error) {
       console.error("Error fetching customer:", error);
       return res.status(500).json({
@@ -46,6 +46,7 @@ class CustomerController {
         country,
         taxId,
         creditLimit,
+        paymentTerms,
         status,
         notes,
       } = req.body;
@@ -68,13 +69,14 @@ class CustomerController {
         country: country || "USA",
         taxId: taxId || null,
         creditLimit: creditLimit !== undefined ? parseFloat(creditLimit) : 0,
+        paymentTerms: paymentTerms || null,
         currentBalance: 0,
         status: status || "active",
         notes: notes || null,
       };
 
       const newCustomer = await customerModel.create(customerData);
-      return res.status(201).json(newCustomer);
+      return res.status(201).json({ success: true, data: newCustomer });
     } catch (error) {
       console.error("Error creating customer:", error);
       return res.status(500).json({
@@ -93,6 +95,9 @@ class CustomerController {
         return res.status(404).json({ message: "Customer not found" });
       }
 
+
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+
       const {
         name,
         email,
@@ -104,30 +109,42 @@ class CustomerController {
         country,
         taxId,
         creditLimit,
+        paymentTerms,
         status,
         notes,
       } = req.body;
 
-      const customerData = {
-        name: name || existingCustomer.name,
-        email: email !== undefined ? email : existingCustomer.email,
-        phone: phone !== undefined ? phone : existingCustomer.phone,
-        address: address !== undefined ? address : existingCustomer.address,
-        city: city !== undefined ? city : existingCustomer.city,
-        state: state !== undefined ? state : existingCustomer.state,
-        zipCode: zipCode !== undefined ? zipCode : existingCustomer.zipCode,
-        country: country !== undefined ? country : existingCustomer.country,
-        taxId: taxId !== undefined ? taxId : existingCustomer.taxId,
-        creditLimit:
-          creditLimit !== undefined
-            ? parseFloat(creditLimit)
-            : existingCustomer.creditLimit,
-        status: status || existingCustomer.status,
-        notes: notes !== undefined ? notes : existingCustomer.notes,
-      };
+      // Build update object - include all fields that are in the request body
+      const customerData = {};
+      
+      // Check if field exists in request body (not just undefined check)
+      if (name !== undefined && name !== null) customerData.name = name;
+      if (email !== undefined) customerData.email = email === "" ? null : email;
+      if (phone !== undefined) customerData.phone = phone === "" ? null : phone;
+      if (address !== undefined) customerData.address = address === "" ? null : address;
+      if (city !== undefined) customerData.city = city === "" ? null : city;
+      if (state !== undefined) customerData.state = state === "" ? null : state;
+      if (zipCode !== undefined) customerData.zipCode = zipCode === "" ? null : zipCode;
+      if (country !== undefined) customerData.country = country === "" ? null : country;
+      if (taxId !== undefined) customerData.taxId = taxId === "" ? null : taxId;
+      if (creditLimit !== undefined) {
+        customerData.creditLimit = creditLimit === "" ? 0 : parseFloat(creditLimit);
+      }
+      // Always include paymentTerms if it exists in request body (even if empty string)
+      // Use 'in' operator to check if key exists in req.body, not just undefined check
+      if ('paymentTerms' in req.body) {
+        customerData.paymentTerms = paymentTerms === "" || paymentTerms === null || paymentTerms === undefined 
+          ? null 
+          : String(paymentTerms).trim();
+      }
+      if (status !== undefined) customerData.status = status;
+      if (notes !== undefined) customerData.notes = notes === "" ? null : notes;
+
+      console.log("Updating customer with data:", JSON.stringify(customerData, null, 2));
+      console.log("PaymentTerms value:", paymentTerms, "Type:", typeof paymentTerms);
 
       const updatedCustomer = await customerModel.update(id, customerData);
-      return res.status(200).json(updatedCustomer);
+      return res.status(200).json({ success: true, data: updatedCustomer });
     } catch (error) {
       console.error("Error updating customer:", error);
       return res.status(500).json({

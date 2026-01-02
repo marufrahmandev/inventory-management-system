@@ -45,6 +45,13 @@ export const suppliersApiSlice = createApi({
     getSupplier: builder.query<{ success: boolean; data: Supplier }, string>({
       query: (id) => `/suppliers/${id}`,
       providesTags: (result, error, id) => [{ type: "Supplier", id }],
+      transformResponse: (response: any) => {
+        // Handle both wrapped and unwrapped responses
+        if (response.success && response.data) {
+          return response;
+        }
+        return { success: true, data: response };
+      },
     }),
     addSupplier: builder.mutation<{ success: boolean; data: Supplier }, Partial<Supplier>>({
       query: (supplier) => ({

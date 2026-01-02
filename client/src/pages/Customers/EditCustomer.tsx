@@ -40,7 +40,7 @@ type CustomerFormData = z.infer<typeof customerSchema>;
 function EditCustomer() {
   const { id } = useParams<{ id: string }>();
   const [updateCustomer] = useUpdateCustomerMutation();
-  const { data: customer, isLoading } = useGetCustomerQuery(id!);
+  const { data: customer, isLoading, isError } = useGetCustomerQuery(id!);
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -62,46 +62,59 @@ function EditCustomer() {
 
   useEffect(() => {
     if (customer) {
+      const customerData = (customer as any).data || customer;
       reset({
-        name: customer.name,
-        email: customer.email || "",
-        phone: customer.phone || "",
-        address: customer.address || "",
-        city: customer.city || "",
-        state: customer.state || "",
-        zipCode: customer.zipCode || "",
-        country: customer.country || "",
-        taxId: customer.taxId || "",
-        creditLimit: customer.creditLimit ? customer.creditLimit.toString() : "",
-        paymentTerms: customer.paymentTerms || "",
-        notes: customer.notes || "",
-        status: customer.status,
+        name: customerData.name || "",
+        email: customerData.email || "",
+        phone: customerData.phone || "",
+        address: customerData.address || "",
+        city: customerData.city || "",
+        state: customerData.state || "",
+        zipCode: customerData.zipCode || "",
+        country: customerData.country || "",
+        taxId: customerData.taxId || "",
+        creditLimit: customerData.creditLimit ? String(customerData.creditLimit) : "",
+        paymentTerms: customerData.paymentTerms || "",
+        notes: customerData.notes || "",
+        status: customerData.status || "active",
       });
     }
   }, [customer, reset]);
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
+      // Build payload - ensure paymentTerms is always included
       const payload: any = {
-        id,
         ...data,
+        paymentTerms: data.paymentTerms || "", // Always include, even if empty
         creditLimit: data.creditLimit ? parseFloat(data.creditLimit) : undefined,
       };
 
-      await updateCustomer(payload).unwrap();
-      toast.success("Customer updated successfully!", toastConfig);
-      setTimeout(() => navigate("/customers"), 1500);
+      console.log("Frontend - Submitting payload:", JSON.stringify(payload, null, 2));
+
+      const response = await updateCustomer({ id, ...payload });
+      if (!response.error) {
+        toast.success("Customer updated successfully!", toastConfig.success);
+        setTimeout(() => navigate("/customers"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to update customer";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to update customer:", error);
       toast.error(
         error?.data?.message || "Failed to update customer",
-        toastConfig
+        toastConfig.error
       );
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading customer...</div>;
+  }
+
+  if (isError || !customer) {
+    return <div className="text-center py-10 text-red-600">Customer not found</div>;
   }
 
   return (
@@ -135,13 +148,15 @@ function EditCustomer() {
 
               <Select
                 label="Status"
-                {...register("status")}
-                error={errors.status?.message}
                 required
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </Select>
+                error={errors.status?.message as string}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+                placeholder="Select Status"
+                {...register("status")}
+              />
 
               <Input
                 type="email"

@@ -154,14 +154,19 @@ function Suppliers() {
     if (window.confirm("Are you sure you want to delete this supplier?")) {
       setDeletingRowId(id);
       try {
-        await deleteSupplier(id).unwrap();
-        toast.success("Supplier deleted successfully!", toastConfig);
-        refetch();
+        const response = await deleteSupplier(id);
+        if (!response.error) {
+          toast.success("Supplier deleted successfully!", toastConfig.success);
+          refetch();
+        } else {
+          const errorMsg = (response.error as any)?.data?.message || "Failed to delete supplier";
+          toast.error(errorMsg, toastConfig.error);
+        }
       } catch (error: any) {
         console.error("Failed to delete supplier:", error);
         toast.error(
           error?.data?.message || "Failed to delete supplier",
-          toastConfig
+          toastConfig.error
         );
       } finally {
         setDeletingRowId(null);

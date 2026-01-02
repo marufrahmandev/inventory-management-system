@@ -71,14 +71,19 @@ function AddSupplier() {
 
   const onSubmit = async (data: SupplierFormData) => {
     try {
-      await addSupplier(data).unwrap();
-      toast.success("Supplier added successfully!", toastConfig);
-      setTimeout(() => navigate("/suppliers"), 1500);
+      const response = await addSupplier(data);
+      if (!response.error) {
+        toast.success("Supplier added successfully!", toastConfig.success);
+        setTimeout(() => navigate("/suppliers"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to add supplier";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to add supplier:", error);
       toast.error(
         error?.data?.message || "Failed to add supplier",
-        toastConfig
+        toastConfig.error
       );
     }
   };
@@ -114,13 +119,15 @@ function AddSupplier() {
 
               <Select
                 label="Status"
-                {...register("status")}
-                error={errors.status?.message}
                 required
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </Select>
+                error={errors.status?.message as string}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+                placeholder="Select Status"
+                {...register("status")}
+              />
 
               <Input
                 type="email"

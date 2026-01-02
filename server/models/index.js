@@ -57,6 +57,10 @@ const Customer = sequelize.define("customers", {
     allowNull: true,
     defaultValue: 0,
   },
+  paymentTerms: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
   currentBalance: {
     type: DataTypes.DECIMAL(15, 2),
     allowNull: true,
@@ -118,6 +122,10 @@ const Supplier = sequelize.define("suppliers", {
   },
   paymentTerms: {
     type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  bankDetails: {
+    type: DataTypes.TEXT,
     allowNull: true,
   },
   currentBalance: {

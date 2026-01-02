@@ -54,6 +54,10 @@ const Customer = sequelize.define(
       allowNull: true,
       defaultValue: 0,
     },
+    paymentTerms: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
     currentBalance: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: true,
@@ -102,7 +106,10 @@ class CustomerModel {
   async getById(id) {
     try {
       const customer = await Customer.findByPk(id);
-      return customer;
+      if (!customer) {
+        return null;
+      }
+      return customer.get({ plain: true }); // Return plain object
     } catch (error) {
       throw new Error(`Error fetching customer: ${error.message}`);
     }
@@ -111,7 +118,7 @@ class CustomerModel {
   async create(data) {
     try {
       const customer = await Customer.create(data);
-      return customer;
+      return customer.get({ plain: true }); // Return plain object
     } catch (error) {
       throw new Error(`Error creating customer: ${error.message}`);
     }
@@ -124,9 +131,14 @@ class CustomerModel {
         throw new Error("Customer not found");
       }
 
+      console.log("Model update - received data:", JSON.stringify(data, null, 2));
       await customer.update(data);
-      return customer;
+      await customer.reload(); // Reload to get updated data
+      const updated = customer.get({ plain: true });
+      console.log("Model update - after reload, paymentTerms:", updated.paymentTerms);
+      return updated; // Return plain object
     } catch (error) {
+      console.error("Model update error:", error);
       throw new Error(`Error updating customer: ${error.message}`);
     }
   }

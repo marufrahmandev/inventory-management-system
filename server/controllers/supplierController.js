@@ -23,7 +23,7 @@ class SupplierController {
         return res.status(404).json({ message: "Supplier not found" });
       }
 
-      return res.status(200).json(supplier);
+      return res.status(200).json({ success: true, data: supplier });
     } catch (error) {
       console.error("Error fetching supplier:", error);
       return res.status(500).json({
@@ -46,6 +46,7 @@ class SupplierController {
         country,
         taxId,
         paymentTerms,
+        bankDetails,
         status,
         notes,
       } = req.body;
@@ -68,13 +69,14 @@ class SupplierController {
         country: country || "USA",
         taxId: taxId || null,
         paymentTerms: paymentTerms || null,
+        bankDetails: bankDetails || null,
         currentBalance: 0,
         status: status || "active",
         notes: notes || null,
       };
 
       const newSupplier = await supplierModel.create(supplierData);
-      return res.status(201).json(newSupplier);
+      return res.status(201).json({ success: true, data: newSupplier });
     } catch (error) {
       console.error("Error creating supplier:", error);
       return res.status(500).json({
@@ -104,30 +106,35 @@ class SupplierController {
         country,
         taxId,
         paymentTerms,
+        bankDetails,
         status,
         notes,
       } = req.body;
 
-      const supplierData = {
-        name: name || existingSupplier.name,
-        email: email !== undefined ? email : existingSupplier.email,
-        phone: phone !== undefined ? phone : existingSupplier.phone,
-        address: address !== undefined ? address : existingSupplier.address,
-        city: city !== undefined ? city : existingSupplier.city,
-        state: state !== undefined ? state : existingSupplier.state,
-        zipCode: zipCode !== undefined ? zipCode : existingSupplier.zipCode,
-        country: country !== undefined ? country : existingSupplier.country,
-        taxId: taxId !== undefined ? taxId : existingSupplier.taxId,
-        paymentTerms:
-          paymentTerms !== undefined
-            ? paymentTerms
-            : existingSupplier.paymentTerms,
-        status: status || existingSupplier.status,
-        notes: notes !== undefined ? notes : existingSupplier.notes,
-      };
+      // Build update object - only include fields that are provided
+      const supplierData = {};
+      
+      if (name !== undefined) supplierData.name = name;
+      if (email !== undefined) supplierData.email = email === "" ? null : email;
+      if (phone !== undefined) supplierData.phone = phone === "" ? null : phone;
+      if (address !== undefined) supplierData.address = address === "" ? null : address;
+      if (city !== undefined) supplierData.city = city === "" ? null : city;
+      if (state !== undefined) supplierData.state = state === "" ? null : state;
+      if (zipCode !== undefined) supplierData.zipCode = zipCode === "" ? null : zipCode;
+      if (country !== undefined) supplierData.country = country === "" ? null : country;
+      if (taxId !== undefined) supplierData.taxId = taxId === "" ? null : taxId;
+      if (paymentTerms !== undefined) supplierData.paymentTerms = paymentTerms === "" ? null : paymentTerms;
+      // Always include bankDetails if it's in the request (even if empty string)
+      if (bankDetails !== undefined) {
+        supplierData.bankDetails = bankDetails === "" || bankDetails === null ? null : bankDetails;
+      }
+      if (status !== undefined) supplierData.status = status;
+      if (notes !== undefined) supplierData.notes = notes === "" ? null : notes;
+
+      console.log("Updating supplier with data:", JSON.stringify(supplierData, null, 2));
 
       const updatedSupplier = await supplierModel.update(id, supplierData);
-      return res.status(200).json(updatedSupplier);
+      return res.status(200).json({ success: true, data: updatedSupplier });
     } catch (error) {
       console.error("Error updating supplier:", error);
       return res.status(500).json({

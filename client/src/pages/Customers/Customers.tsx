@@ -154,14 +154,19 @@ function Customers() {
     if (window.confirm("Are you sure you want to delete this customer?")) {
       setDeletingRowId(id);
       try {
-        await deleteCustomer(id).unwrap();
-        toast.success("Customer deleted successfully!", toastConfig);
-        refetch();
+        const response = await deleteCustomer(id);
+        if (!response.error) {
+          toast.success("Customer deleted successfully!", toastConfig.success);
+          refetch();
+        } else {
+          const errorMsg = (response.error as any)?.data?.message || "Failed to delete customer";
+          toast.error(errorMsg, toastConfig.error);
+        }
       } catch (error: any) {
         console.error("Failed to delete customer:", error);
         toast.error(
           error?.data?.message || "Failed to delete customer",
-          toastConfig
+          toastConfig.error
         );
       } finally {
         setDeletingRowId(null);

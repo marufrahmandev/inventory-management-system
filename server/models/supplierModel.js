@@ -53,6 +53,10 @@ const Supplier = sequelize.define(
       type: DataTypes.STRING(100),
       allowNull: true,
     },
+    bankDetails: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     currentBalance: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: true,
@@ -101,7 +105,10 @@ class SupplierModel {
   async getById(id) {
     try {
       const supplier = await Supplier.findByPk(id);
-      return supplier;
+      if (!supplier) {
+        return null;
+      }
+      return supplier.get({ plain: true }); // Return plain object
     } catch (error) {
       throw new Error(`Error fetching supplier: ${error.message}`);
     }
@@ -110,7 +117,7 @@ class SupplierModel {
   async create(data) {
     try {
       const supplier = await Supplier.create(data);
-      return supplier;
+      return supplier.get({ plain: true }); // Return plain object
     } catch (error) {
       throw new Error(`Error creating supplier: ${error.message}`);
     }
@@ -124,7 +131,8 @@ class SupplierModel {
       }
 
       await supplier.update(data);
-      return supplier;
+      await supplier.reload(); // Reload to get updated data
+      return supplier.get({ plain: true }); // Return plain object
     } catch (error) {
       throw new Error(`Error updating supplier: ${error.message}`);
     }
