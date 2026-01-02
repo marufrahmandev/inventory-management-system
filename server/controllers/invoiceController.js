@@ -135,7 +135,7 @@ class InvoiceController {
       const { salesOrderId } = req.params;
       const invoices = await invoiceModel.getBySalesOrderId(salesOrderId);
 
-      return res.status(200).json(invoices);
+      return res.status(200).json({ success: true, data: invoices });
     } catch (error) {
       console.error("Error fetching invoices by sales order:", error);
       return res.status(500).json({

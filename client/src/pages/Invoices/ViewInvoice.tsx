@@ -1,8 +1,9 @@
-import { ArrowLeft, Printer, DollarSign } from "lucide-react";
+import { ArrowLeft, Printer, DollarSign, ExternalLink, FileText } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 import Button from "../../elements/Button";
 import { useGetInvoiceByIdQuery } from "../../state/invoices/invoiceSlice";
+import { useGetSalesOrderByIdQuery } from "../../state/salesOrders/salesOrderSlice";
 
 function ViewInvoice() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,15 @@ function ViewInvoice() {
   useEffect(() => {
     setPageTitle("View Invoice");
   }, [setPageTitle]);
+  
+  // Handle wrapped response from API
+  const invoice = (invoiceData as any)?.data || invoiceData;
+  
+  // Fetch sales order if invoice has salesOrderId
+  const { data: salesOrderData } = useGetSalesOrderByIdQuery(invoice?.salesOrderId || "", {
+    skip: !invoice?.salesOrderId,
+  });
+  const salesOrder = (salesOrderData as any)?.data || salesOrderData;
 
   const handlePrint = () => {
     window.print();
@@ -24,9 +34,6 @@ function ViewInvoice() {
   if (isLoading) {
     return <div className="text-center py-10">Loading invoice...</div>;
   }
-
-  // Handle wrapped response from API
-  const invoice = (invoiceData as any)?.data || invoiceData;
 
   if (isError || !invoice || !invoice.id) {
     return (
@@ -110,6 +117,21 @@ function ViewInvoice() {
                 <div>
                   <dt className="text-sm text-gray-600">Due Date:</dt>
                   <dd className="font-medium">{new Date(inv.dueDate).toLocaleDateString()}</dd>
+                </div>
+              )}
+              {inv.salesOrderId && salesOrder && (
+                <div>
+                  <dt className="text-sm text-gray-600">Sales Order:</dt>
+                  <dd className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium">{salesOrder.orderNumber}</span>
+                    <button
+                      onClick={() => navigate(`/sales-orders/view/${inv.salesOrderId}`)}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      View <ExternalLink className="h-3 w-3" />
+                    </button>
+                  </dd>
                 </div>
               )}
             </dl>

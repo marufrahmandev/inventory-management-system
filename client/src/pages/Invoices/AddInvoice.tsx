@@ -11,11 +11,13 @@ import Select from "../../elements/Select";
 import { useAddInvoiceMutation, useGetNextInvoiceNumberQuery } from "../../state/invoices/invoiceSlice";
 import { useGetProductsQuery } from "../../state/products/productSlice";
 import { useGetCustomersQuery } from "../../state/customers/customerSlice";
+import { useGetSalesOrdersQuery } from "../../state/salesOrders/salesOrderSlice";
 import { ToastContainer, toast } from "react-toastify";
 import { toastConfig } from "../../configs/toast";
 
 const invoiceSchema = z.object({
   invoiceNumber: z.string().trim().min(1, { message: "Invoice number is required" }),
+  salesOrderId: z.string().trim().optional(),
   customerId: z.string().trim().optional(),
   customerName: z.string().trim().min(1, { message: "Customer name is required" }),
   customerEmail: z.string().trim().optional(),
@@ -40,6 +42,7 @@ function AddInvoice() {
   const [addInvoice] = useAddInvoiceMutation();
   const { data: products, isLoading: productsLoading } = useGetProductsQuery({});
   const { data: customers, isLoading: customersLoading } = useGetCustomersQuery({});
+  const { data: salesOrders, isLoading: salesOrdersLoading } = useGetSalesOrdersQuery({});
   const { data: nextNumberData } = useGetNextInvoiceNumberQuery({});
   const navigate = useNavigate();
 
@@ -58,6 +61,7 @@ function AddInvoice() {
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       invoiceNumber: "",
+      salesOrderId: "",
       customerId: "",
       customerName: "",
       customerEmail: "",
@@ -165,6 +169,7 @@ function AddInvoice() {
 
       const payload = {
         ...data,
+        salesOrderId: data.salesOrderId || null,
         customerId: data.customerId || null,
         items: data.items.map((item: any) => ({
           productId: item.productId,
@@ -211,6 +216,24 @@ function AddInvoice() {
               {...register("invoiceNumber")}
               error={errors.invoiceNumber?.message}
               required
+            />
+
+            <Controller
+              name="salesOrderId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Sales Order (Optional)"
+                  options={[
+                    { value: "", label: "-- Select Sales Order --" },
+                    ...(salesOrdersLoading ? [] : (salesOrders?.data || []).map((order: any) => ({
+                      value: order.id,
+                      label: `${order.orderNumber} - ${order.customerName} ($${parseFloat(order.total || 0).toFixed(2)})`,
+                    }))),
+                  ]}
+                  {...field}
+                />
+              )}
             />
 
             <Controller

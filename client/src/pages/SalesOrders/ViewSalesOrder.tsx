@@ -1,12 +1,14 @@
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, FileText, ExternalLink } from "lucide-react";
 import React, { useEffect } from "react";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 import Button from "../../elements/Button";
 import { useGetSalesOrderByIdQuery } from "../../state/salesOrders/salesOrderSlice";
+import { useGetInvoicesBySalesOrderIdQuery } from "../../state/invoices/invoiceSlice";
 
 function ViewSalesOrder() {
   const { id } = useParams<{ id: string }>();
   const { data: salesOrderData, isLoading, isError } = useGetSalesOrderByIdQuery(id!);
+  const { data: invoicesData } = useGetInvoicesBySalesOrderIdQuery(id!);
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -16,6 +18,8 @@ function ViewSalesOrder() {
   useEffect(() => {
     setPageTitle("View Sales Order");
   }, [setPageTitle]);
+
+  const invoices = (invoicesData as any)?.data || invoicesData || [];
 
   const handlePrint = () => {
     window.print();
@@ -202,6 +206,61 @@ function ViewSalesOrder() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Related Invoices */}
+        <div className="mt-8 pt-8 border-t">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Related Invoices</h3>
+          </div>
+          {invoices && invoices.length > 0 ? (
+            <div className="space-y-3">
+              {invoices.map((invoice: any) => (
+                <div
+                  key={invoice.id}
+                  className="flex items-center justify-between p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {invoice.invoiceNumber}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {new Date(invoice.invoiceDate).toLocaleDateString()} • ${parseFloat(invoice.total || 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        invoice.status === 'paid'
+                          ? 'bg-green-100 text-green-800'
+                          : invoice.status === 'partial'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : invoice.status === 'overdue'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {invoice.status.toUpperCase()}
+                    </span>
+                    <button
+                      onClick={() => navigate(`/invoices/view/${invoice.id}`)}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                    >
+                      View <ExternalLink className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 border border-dashed rounded-lg text-center text-gray-500">
+              <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+              <p>No invoices generated for this sales order yet.</p>
+            </div>
+          )}
         </div>
 
         {/* Notes */}
