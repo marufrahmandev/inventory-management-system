@@ -2,12 +2,14 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useNavigate, useOutletContext } from "react-router";
 import Button from "../../elements/Button";
 import Input from "../../elements/Input";
 import Textarea from "../../elements/Textarea";
 import Select from "../../elements/Select";
+import FileInput from "../../elements/FileInput";
+import GalleryInput from "../../elements/GalleryInput";
 import { useAddProductMutation } from "../../state/products/productSlice";
 import { useGetCategoriesQuery } from "../../state/categories/categorySlice";
 import { ToastContainer, toast } from "react-toastify";
@@ -28,6 +30,21 @@ const productSchema = z.object({
   minStock: z.string().trim(),
   unit: z.string().trim(),
   barcode: z.string().trim(),
+  product_image: z.preprocess((val) => {
+    if (!val) return null;
+    if (val instanceof FileList) {
+      const file = val.item(0);
+      return file ?? null;
+    }
+    return val;
+  }, z.instanceof(File).nullable().refine((file) => file !== null, { message: "Product image is required" })),
+  product_gallery: z.preprocess((val) => {
+    if (!val) return null;
+    if (val instanceof FileList) {
+      return Array.from(val);
+    }
+    return val;
+  }, z.array(z.instanceof(File)).optional().nullable()),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -45,6 +62,8 @@ function AddProduct() {
   const {
     register,
     handleSubmit,
+    watch,
+    control,
     formState: { errors, isSubmitting, isValid },
   } = useForm<ProductFormData>({
     defaultValues: {
@@ -58,30 +77,53 @@ function AddProduct() {
       minStock: "",
       unit: "pcs",
       barcode: "",
+      product_image: null,
+      product_gallery: null,
     },
     resolver: zodResolver(productSchema),
     mode: "all",
     criteriaMode: "all",
   });
 
+  // Watch form values to check if form is ready to submit
+  const productImage = watch("product_image");
+  const productGallery = watch("product_gallery");
+  
+  // Check if form can be submitted
+  const canSubmit = 
+    isValid && 
+    productImage !== null;
+
   const onSubmit = async (data: ProductFormData) => {
     setIsFormsubmitting(true);
     
     try {
-      const productData = {
-        name: data.name,
-        categoryId: data.categoryId,
-        sku: data.sku || "",
-        description: data.description || "",
-        price: parseFloat(data.price) || 0,
-        cost: parseFloat(data.cost) || 0,
-        stock: parseInt(data.stock) || 0,
-        minStock: parseInt(data.minStock) || 0,
-        unit: data.unit || "pcs",
-        barcode: data.barcode || "",
-      };
+      // Create FormData for file uploads
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("categoryId", data.categoryId);
+      formData.append("sku", data.sku || "");
+      formData.append("description", data.description || "");
+      formData.append("price", String(parseFloat(data.price) || 0));
+      formData.append("cost", String(parseFloat(data.cost) || 0));
+      formData.append("stock", String(parseInt(data.stock) || 0));
+      formData.append("minStock", String(parseInt(data.minStock) || 0));
+      formData.append("unit", data.unit || "pcs");
+      formData.append("barcode", data.barcode || "");
 
-      const response = await addProduct(productData);
+      // Append main product image (required)
+      if (data.product_image) {
+        formData.append("product_image", data.product_image);
+      }
+
+      // Append gallery images (optional)
+      if (data.product_gallery && Array.isArray(data.product_gallery)) {
+        data.product_gallery.forEach((file) => {
+          formData.append("product_gallery", file);
+        });
+      }
+
+      const response = await addProduct(formData);
 
       if (!response.error) {
         toast.success("Product added successfully", toastConfig.success);
@@ -208,13 +250,34 @@ function AddProduct() {
               error={errors.description?.message as string}
               {...register("description")}
             />
+
+            <FileInput
+              accept="image/*"
+              label="Product Image"
+              required
+              error={errors.product_image?.message as string}
+              {...register("product_image")}
+            />
+
+            <Controller
+              name="product_gallery"
+              control={control}
+              render={({ field }) => (
+                <GalleryInput
+                  accept="image/*"
+                  label="Product Gallery"
+                  error={errors.product_gallery?.message as string}
+                  {...field}
+                />
+              )}
+            />
           </div>
           
           <div className="flex justify-start gap-5 sm:max-w-[80%]">
             <Button
               type="submit"
               className="mt-4 min-w-[150px]"
-              disabled={isFormsubmitting || isSubmitting || !isValid}
+              disabled={isFormsubmitting || isSubmitting || !canSubmit}
             >
               {isFormsubmitting || isSubmitting ? "Submitting..." : "Submit"}
             </Button>

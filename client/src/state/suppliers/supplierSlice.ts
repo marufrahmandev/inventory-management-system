@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
 export interface Supplier {
   id: string;
@@ -21,6 +21,18 @@ export interface Supplier {
   updatedAt: string;
 }
 
+function providesList<R extends { id: string | number }[], T extends string>(
+  resultsWithIds: R | undefined,
+  tagType: T
+) {
+  return resultsWithIds
+    ? [
+        { type: tagType, id: "LIST" },
+        ...resultsWithIds.map(({ id }) => ({ type: tagType, id })),
+      ]
+    : [{ type: tagType, id: "LIST" }];
+}
+
 export const suppliersApiSlice = createApi({
   reducerPath: "suppliersApi",
   baseQuery: fetchBaseQuery({ baseUrl: BASE_URL }),
@@ -28,11 +40,11 @@ export const suppliersApiSlice = createApi({
   endpoints: (builder) => ({
     getSuppliers: builder.query<{ success: boolean; data: Supplier[]; count: number }, void>({
       query: () => "/suppliers",
-      providesTags: ["Supplier"],
+      providesTags: (result: any) => providesList(result?.data, "Supplier"),
     }),
     getSupplier: builder.query<{ success: boolean; data: Supplier }, string>({
       query: (id) => `/suppliers/${id}`,
-      providesTags: ["Supplier"],
+      providesTags: (result, error, id) => [{ type: "Supplier", id }],
     }),
     addSupplier: builder.mutation<{ success: boolean; data: Supplier }, Partial<Supplier>>({
       query: (supplier) => ({
@@ -40,7 +52,7 @@ export const suppliersApiSlice = createApi({
         method: "POST",
         body: supplier,
       }),
-      invalidatesTags: ["Supplier"],
+      invalidatesTags: [{ type: "Supplier", id: "LIST" }],
     }),
     updateSupplier: builder.mutation<{ success: boolean; data: Supplier }, { id: string } & Partial<Supplier>>({
       query: ({ id, ...supplier }) => ({
@@ -48,14 +60,20 @@ export const suppliersApiSlice = createApi({
         method: "PUT",
         body: supplier,
       }),
-      invalidatesTags: ["Supplier"],
+      invalidatesTags: (result, error, arg) => [
+        { type: "Supplier", id: arg.id },
+        { type: "Supplier", id: "LIST" },
+      ],
     }),
     deleteSupplier: builder.mutation<{ success: boolean }, string>({
       query: (id) => ({
         url: `/suppliers/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Supplier"],
+      invalidatesTags: (result, error, id) => [
+        { type: "Supplier", id },
+        { type: "Supplier", id: "LIST" },
+      ],
     }),
   }),
 });

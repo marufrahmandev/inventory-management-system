@@ -255,6 +255,40 @@ const Product = sequelize.define("products", {
     type: DataTypes.STRING(100),
     allowNull: true,
   },
+  // Product Image (Required - Main Image)
+  product_image: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  product_image_optimizedUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  product_image_secureUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  product_image_publicId: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  product_image_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  // Product Gallery (Optional - Multiple Images)
+  product_gallery: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    // Store as JSON string: [{"url": "...", "publicId": "...", ...}, ...]
+    get() {
+      const value = this.getDataValue("product_gallery");
+      return value ? JSON.parse(value) : [];
+    },
+    set(value) {
+      this.setDataValue("product_gallery", value ? JSON.stringify(value) : null);
+    },
+  },
 });
 
 // Sales Order Model

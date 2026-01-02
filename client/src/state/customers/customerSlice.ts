@@ -1,6 +1,18 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+
+function providesList<R extends { id: string | number }[], T extends string>(
+  resultsWithIds: R | undefined,
+  tagType: T
+) {
+  return resultsWithIds
+    ? [
+        { type: tagType, id: "LIST" },
+        ...resultsWithIds.map(({ id }) => ({ type: tagType, id })),
+      ]
+    : [{ type: tagType, id: "LIST" }];
+}
 
 export interface Customer {
   id: string;
@@ -28,11 +40,11 @@ export const customersApiSlice = createApi({
   endpoints: (builder) => ({
     getCustomers: builder.query<{ success: boolean; data: Customer[]; count: number }, void>({
       query: () => "/customers",
-      providesTags: ["Customer"],
+      providesTags: (result: any) => providesList(result?.data, "Customer"),
     }),
     getCustomer: builder.query<{ success: boolean; data: Customer }, string>({
       query: (id) => `/customers/${id}`,
-      providesTags: ["Customer"],
+      providesTags: (result, error, id) => [{ type: "Customer", id }],
     }),
     addCustomer: builder.mutation<{ success: boolean; data: Customer }, Partial<Customer>>({
       query: (customer) => ({
@@ -40,7 +52,7 @@ export const customersApiSlice = createApi({
         method: "POST",
         body: customer,
       }),
-      invalidatesTags: ["Customer"],
+      invalidatesTags: [{ type: "Customer", id: "LIST" }],
     }),
     updateCustomer: builder.mutation<{ success: boolean; data: Customer }, { id: string } & Partial<Customer>>({
       query: ({ id, ...customer }) => ({
@@ -48,14 +60,20 @@ export const customersApiSlice = createApi({
         method: "PUT",
         body: customer,
       }),
-      invalidatesTags: ["Customer"],
+      invalidatesTags: (result, error, arg) => [
+        { type: "Customer", id: arg.id },
+        { type: "Customer", id: "LIST" },
+      ],
     }),
     deleteCustomer: builder.mutation<{ success: boolean }, string>({
       query: (id) => ({
         url: `/customers/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Customer"],
+      invalidatesTags: (result, error, id) => [
+        { type: "Customer", id },
+        { type: "Customer", id: "LIST" },
+      ],
     }),
   }),
 });

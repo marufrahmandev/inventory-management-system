@@ -72,19 +72,28 @@ export const productsApiSlice = createApi({
           url: "/products",
           method: "POST",
           body: productData,
+          formData: true, // Tell RTK Query this is FormData
         }),
         invalidatesTags: [{ type: "Product", id: "LIST" }],
       }),
       updateProduct: builder.mutation({
-        query: ({ id, ...productData }) => ({
-          url: `/products/${id}`,
-          method: "PUT",
-          body: productData,
-        }),
-        invalidatesTags: (result, error, arg) => [
-          { type: "Product", id: arg.id },
-          { type: "Product", id: "LIST" },
-        ],
+        query: ({ id, formData }: { id: string; formData: FormData }) => {
+          // Remove id from FormData as it goes in URL
+          formData.delete("id");
+          return {
+            url: `/products/${id}`,
+            method: "PUT",
+            body: formData,
+            formData: true, // Tell RTK Query this is FormData
+          };
+        },
+        invalidatesTags: (result, error, arg) => {
+          // arg is now { id, formData }
+          return [
+            { type: "Product", id: arg.id },
+            { type: "Product", id: "LIST" },
+          ];
+        },
       }),
       deleteProduct: builder.mutation({
         query: ({ id }) => ({

@@ -17,6 +17,11 @@ const upload = multer({ storage: storage });
 
 const uploadSingleFile = upload.single("file");
 const uploadNone = upload.none();
+// For products: main image (required) + gallery images (optional)
+const uploadProductFiles = upload.fields([
+  { name: "product_image", maxCount: 1 }, // Main product image (required)
+  { name: "product_gallery", maxCount: 10 }, // Gallery images (optional, max 10)
+]);
 
 function storeSingleFile(req, res, next) {
   return new Promise((resolve, reject) => {
@@ -37,10 +42,30 @@ function storeSingleFile(req, res, next) {
   });
 }
 
+function storeProductFiles(req, res, next) {
+  return new Promise((resolve, reject) => {
+    return uploadProductFiles(req, res, async function (err) {
+      if (err instanceof multer.MulterError) {
+        console.log("multer.MulterError for product files>>>>>>>>", err);
+        reject(err);
+      } else if (err) {
+        console.log("else multer.MulterError for product files>>>>>>>>", err);
+        reject(err);
+      }
+      resolve({
+        message: "Files uploaded successfully",
+        body: req.body,
+        files: req.files ? req.files : null,
+      });
+    });
+  });
+}
+
 module.exports = {
   upload,
   uploadSingleFile,
   uploadNone,
   storeSingleFile,
+  storeProductFiles,
 };
 

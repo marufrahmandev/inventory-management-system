@@ -113,6 +113,7 @@ export const categoriesApiSlice = createApi({
         },
         invalidatesTags: (result, error, arg) => [
           { type: "Category", id: arg.id },
+          { type: "Category", id: "LIST" },
         ],
       }),
       deleteCategory: builder.mutation({
@@ -122,6 +123,7 @@ export const categoriesApiSlice = createApi({
         }),
         invalidatesTags: (result, error, arg) => [
           { type: "Category", id: arg.id },
+          { type: "Category", id: "LIST" },
         ],
       }),
     };

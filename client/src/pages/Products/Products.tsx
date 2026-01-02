@@ -48,6 +48,25 @@ function Products() {
       size: 50,
     },
     {
+      accessorKey: "product_image_optimizedUrl",
+      header: "Image",
+      cell: (row) =>
+        row.getValue() ? (
+          <img
+            src={row.getValue() as string}
+            alt="Product"
+            className="w-12 h-12 rounded-sm object-cover"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-sm bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+            No Image
+          </div>
+        ),
+      enableColumnFilter: false,
+      filterFn: "includesString",
+      size: 100,
+    },
+    {
       accessorKey: "name",
       header: "Product Name",
       cell: (row) => row.getValue(),
