@@ -8,8 +8,9 @@ import {
   useGetSalesOrdersQuery,
   useDeleteSalesOrderMutation,
 } from "../../state/salesOrders/salesOrderSlice";
+import { useCreateInvoiceFromSalesOrderMutation } from "../../state/invoices/invoiceSlice";
 import DebouncedInput from "../../components/TanstackTable/DebouncedInput";
-import { Loader2, Pencil, Plus, Trash, Eye } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash, Eye, FileText } from "lucide-react";
 import { ToastContainer, toast } from "react-toastify";
 import { toastConfig } from "../../configs/toast";
 
@@ -18,9 +19,11 @@ function SalesOrders() {
     setPageTitle: (title: string) => void;
   }>();
   const [deletingRowId, setDeletingRowId] = useState<string | null>(null);
+  const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const navigate = useNavigate();
   const [deleteSalesOrder] = useDeleteSalesOrderMutation();
+  const [createInvoiceFromSalesOrder] = useCreateInvoiceFromSalesOrderMutation();
 
   const columns: ColumnDef<SalesOrder>[] = [
     {
@@ -95,43 +98,65 @@ function SalesOrders() {
     {
       accessorKey: "action",
       header: "Actions",
-      cell: (row) => (
-        <div className="flex gap-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/sales-orders/view/${row.row.original.id}`);
-            }}
-            title="View"
-          >
-            <Eye className="w-4 h-4 text-gray-500" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/sales-orders/edit/${row.row.original.id}`);
-            }}
-            title="Edit"
-          >
-            <Pencil className="w-4 h-4 text-blue-500" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(row.row.original.id);
-            }}
-            disabled={deletingRowId !== null}
-            title="Delete"
-          >
-            {deletingRowId === row.row.original.id ? (
-              <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
-            ) : (
-              <Trash className="w-4 h-4 text-red-500" />
+      cell: (row) => {
+        const order = row.row.original;
+        const canGenerateInvoice = order.status === "confirmed" || order.status === "completed";
+        
+        return (
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/sales-orders/view/${order.id}`);
+              }}
+              title="View"
+            >
+              <Eye className="w-4 h-4 text-gray-500 hover:text-gray-700" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/sales-orders/edit/${order.id}`);
+              }}
+              title="Edit"
+            >
+              <Pencil className="w-4 h-4 text-blue-500 hover:text-blue-700" />
+            </button>
+            {canGenerateInvoice && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGenerateInvoice(order.id);
+                }}
+                disabled={generatingInvoiceId !== null}
+                title="Generate Invoice"
+                className="disabled:opacity-50"
+              >
+                {generatingInvoiceId === order.id ? (
+                  <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4 text-green-500 hover:text-green-700" />
+                )}
+              </button>
             )}
-          </button>
-        </div>
-      ),
-      size: 120,
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(order.id);
+              }}
+              disabled={deletingRowId !== null}
+              title="Delete"
+            >
+              {deletingRowId === order.id ? (
+                <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+              ) : (
+                <Trash className="w-4 h-4 text-red-500 hover:text-red-700" />
+              )}
+            </button>
+          </div>
+        );
+      },
+      size: 150,
     },
   ];
 
@@ -147,6 +172,35 @@ function SalesOrders() {
       toast.error(errorMsg, toastConfig.error);
     } else {
       toast.success("Sales order deleted successfully", toastConfig.success);
+    }
+  };
+
+  const handleGenerateInvoice = async (salesOrderId: string) => {
+    if (!confirm("Generate invoice from this sales order?")) return;
+    
+    setGeneratingInvoiceId(salesOrderId);
+    try {
+      const response = await createInvoiceFromSalesOrder(salesOrderId);
+      setGeneratingInvoiceId(null);
+      
+      if (response.error) {
+        const errorMsg = (response.error as any)?.data?.message || "Error generating invoice";
+        toast.error(errorMsg, toastConfig.error);
+      } else {
+        toast.success("Invoice generated successfully!", toastConfig.success);
+        // Navigate to the generated invoice after a short delay
+        setTimeout(() => {
+          const invoiceId = (response.data as any)?.data?.id;
+          if (invoiceId) {
+            navigate(`/invoices/view/${invoiceId}`);
+          } else {
+            navigate("/invoices");
+          }
+        }, 1500);
+      }
+    } catch (error) {
+      setGeneratingInvoiceId(null);
+      toast.error("Error generating invoice", toastConfig.error);
     }
   };
 

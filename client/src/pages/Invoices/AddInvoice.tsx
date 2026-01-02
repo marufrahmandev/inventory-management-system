@@ -1,14 +1,14 @@
 import { ArrowLeft, Plus, Trash } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { useNavigate, useOutletContext } from "react-router";
 import Button from "../../elements/Button";
 import Input from "../../elements/Input";
 import Textarea from "../../elements/Textarea";
 import Select from "../../elements/Select";
-import { useAddInvoiceMutation } from "../../state/invoices/invoiceSlice";
+import { useAddInvoiceMutation, useGetNextInvoiceNumberQuery } from "../../state/invoices/invoiceSlice";
 import { useGetProductsQuery } from "../../state/products/productSlice";
 import { useGetCustomersQuery } from "../../state/customers/customerSlice";
 import { ToastContainer, toast } from "react-toastify";
@@ -24,6 +24,8 @@ const invoiceSchema = z.object({
   invoiceDate: z.string().trim().min(1, { message: "Invoice date is required" }),
   dueDate: z.string().trim().optional(),
   status: z.string().trim().min(1, { message: "Status is required" }),
+  taxRate: z.string().trim().optional(),
+  paidAmount: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   items: z.array(z.object({
     productId: z.string().trim().min(1, { message: "Product is required" }),
@@ -36,8 +38,9 @@ type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
 function AddInvoice() {
   const [addInvoice] = useAddInvoiceMutation();
-  const { data: products } = useGetProductsQuery({});
-  const { data: customers } = useGetCustomersQuery();
+  const { data: products, isLoading: productsLoading } = useGetProductsQuery({});
+  const { data: customers, isLoading: customersLoading } = useGetCustomersQuery({});
+  const { data: nextNumberData } = useGetNextInvoiceNumberQuery({});
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -54,7 +57,8 @@ function AddInvoice() {
   } = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
-      invoiceNumber: `INV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      invoiceNumber: "",
+      customerId: "",
       customerName: "",
       customerEmail: "",
       customerPhone: "",
@@ -62,10 +66,19 @@ function AddInvoice() {
       invoiceDate: new Date().toISOString().split('T')[0],
       dueDate: "",
       status: "unpaid",
+      taxRate: "0",
+      paidAmount: "0",
       notes: "",
       items: [{ productId: "", quantity: "", price: "" }],
     },
   });
+
+  // Auto-fill invoice number from backend
+  useEffect(() => {
+    if (nextNumberData?.data?.invoiceNumber) {
+      setValue("invoiceNumber", nextNumberData.data.invoiceNumber);
+    }
+  }, [nextNumberData, setValue]);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -74,10 +87,15 @@ function AddInvoice() {
 
   const selectedCustomerId = watch("customerId");
   const items = watch("items");
+  const taxRate = watch("taxRate");
+  const paidAmount = watch("paidAmount");
+  
+  const manuallyEditedRef = useRef(false);
+  const previousTotalRef = useRef(0);
 
   useEffect(() => {
     setPageTitle("Add Invoice");
-  }, []);
+  }, [setPageTitle]);
 
   // Auto-fill customer details when customer is selected
   useEffect(() => {
@@ -89,6 +107,12 @@ function AddInvoice() {
         setValue("customerPhone", customer.phone || "");
         setValue("customerAddress", customer.address || "");
       }
+    } else if (!selectedCustomerId) {
+      // Clear fields when no customer is selected
+      setValue("customerName", "");
+      setValue("customerEmail", "");
+      setValue("customerPhone", "");
+      setValue("customerAddress", "");
     }
   }, [selectedCustomerId, customers, setValue]);
 
@@ -102,7 +126,7 @@ function AddInvoice() {
     }
   };
 
-  // Calculate totals
+  // Calculate totals - make reactive by not using useMemo
   const calculateSubtotal = () => {
     return items.reduce((sum, item) => {
       const quantity = parseFloat(item.quantity) || 0;
@@ -111,38 +135,57 @@ function AddInvoice() {
     }, 0);
   };
 
+  const subtotal = calculateSubtotal();
+  const taxRateValue = parseFloat(taxRate) || 0;
+  const tax = (subtotal * taxRateValue) / 100;
+  const total = subtotal + tax;
+  const paid = parseFloat(paidAmount) || 0;
+  // Fix negative zero issue with Math.abs check
+  const balanceDue = Math.abs(total - paid) < 0.01 ? 0 : total - paid;
+
+  // Auto-update Amount Paid to match Total when total changes
+  useEffect(() => {
+    if (total > 0) {
+      // Only auto-update if user hasn't manually edited the field
+      // OR if the total changed (items/tax modified)
+      if (!manuallyEditedRef.current || Math.abs(previousTotalRef.current - total) > 0.01) {
+        setValue("paidAmount", total.toFixed(2));
+        previousTotalRef.current = total;
+      }
+    }
+  }, [total, setValue]);
+
   const onSubmit = async (data: InvoiceFormData) => {
     try {
-      const subtotal = calculateSubtotal();
-      const tax = subtotal * 0.1; // 10% tax
-      const total = subtotal + tax;
+      const finalSubtotal = calculateSubtotal();
+      const finalTaxRate = parseFloat(data.taxRate || "0");
+      const finalTax = (finalSubtotal * finalTaxRate) / 100;
+      const finalTotal = finalSubtotal + finalTax;
+      const finalPaidAmount = parseFloat(data.paidAmount || "0");
 
       const payload = {
         ...data,
+        customerId: data.customerId || null,
         items: data.items.map((item: any) => ({
           productId: item.productId,
           quantity: parseInt(item.quantity),
           price: parseFloat(item.price),
         })),
-        subtotal,
-        tax,
+        subtotal: finalSubtotal,
+        tax: finalTax,
         discount: 0,
-        total,
-        paidAmount: 0,
+        total: finalTotal,
+        paidAmount: finalPaidAmount,
       };
 
       await addInvoice(payload).unwrap();
-      toast.success("Invoice created successfully!", toastConfig);
+      toast.success("Invoice created successfully!", toastConfig.success);
       setTimeout(() => navigate("/invoices"), 1500);
     } catch (error: any) {
       console.error("Failed to create invoice:", error);
-      toast.error(error?.data?.message || "Failed to create invoice", toastConfig);
+      toast.error(error?.data?.message || "Failed to create invoice", toastConfig.error);
     }
   };
-
-  const subtotal = calculateSubtotal();
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
 
   return (
     <div className="max-w-5xl">
@@ -170,17 +213,24 @@ function AddInvoice() {
               required
             />
 
-            <Select
-              label="Status"
-              {...register("status")}
-              error={errors.status?.message}
-              required
-            >
-              <option value="unpaid">Unpaid</option>
-              <option value="partial">Partially Paid</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
-            </Select>
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Status"
+                  options={[
+                    { value: "unpaid", label: "Unpaid" },
+                    { value: "partial", label: "Partially Paid" },
+                    { value: "paid", label: "Paid" },
+                    { value: "overdue", label: "Overdue" },
+                  ]}
+                  error={errors.status?.message}
+                  required
+                  {...field}
+                />
+              )}
+            />
 
             <Input
               type="date"
@@ -202,23 +252,31 @@ function AddInvoice() {
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Select Customer (Optional)"
-                {...register("customerId")}
-              >
-                <option value="">-- Select Customer --</option>
-                {customers?.data?.map((customer: any) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </option>
-                ))}
-              </Select>
+              <Controller
+                name="customerId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Select Customer (Optional)"
+                    options={[
+                      { value: "", label: "-- Select Customer --" },
+                      ...(customersLoading ? [] : (customers?.data || []).map((customer: any) => ({
+                        value: customer.id,
+                        label: customer.name,
+                      }))),
+                    ]}
+                    {...field}
+                  />
+                )}
+              />
 
               <Input
                 label="Customer Name"
                 {...register("customerName")}
                 error={errors.customerName?.message}
                 required
+                readOnly={!!selectedCustomerId}
+                disabled={!!selectedCustomerId}
               />
 
               <Input
@@ -226,12 +284,16 @@ function AddInvoice() {
                 type="email"
                 {...register("customerEmail")}
                 error={errors.customerEmail?.message}
+                readOnly={!!selectedCustomerId}
+                disabled={!!selectedCustomerId}
               />
 
               <Input
                 label="Customer Phone"
                 {...register("customerPhone")}
                 error={errors.customerPhone?.message}
+                readOnly={!!selectedCustomerId}
+                disabled={!!selectedCustomerId}
               />
 
               <div className="md:col-span-2">
@@ -240,8 +302,15 @@ function AddInvoice() {
                   {...register("customerAddress")}
                   error={errors.customerAddress?.message}
                   rows={2}
+                  readOnly={!!selectedCustomerId}
+                  disabled={!!selectedCustomerId}
                 />
               </div>
+              {!!selectedCustomerId && (
+                <p className="text-sm text-gray-500 md:col-span-2 mt-2">
+                  Customer details are read-only. To update, edit the customer in the Customers page.
+                </p>
+              )}
             </div>
           </div>
 
@@ -261,62 +330,101 @@ function AddInvoice() {
 
             <div className="space-y-4">
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-12 gap-4 items-start border p-4 rounded">
-                  <div className="col-span-5">
-                    <Select
-                      label="Product"
-                      {...register(`items.${index}.productId`)}
-                      onChange={(e) => handleProductChange(index, e.target.value)}
-                      error={errors.items?.[index]?.productId?.message}
-                      required
-                    >
-                      <option value="">-- Select Product --</option>
-                      {products?.data?.map((product: any) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} (Stock: {product.stock})
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
+                <div key={field.id} className="border p-4 rounded-lg bg-gray-50">
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Product Field */}
+                    <div>
+                      <Controller
+                        name={`items.${index}.productId`}
+                        control={control}
+                        render={({ field: selectField }) => (
+                          <Select
+                            label="Product"
+                            layout="stacked"
+                            containerClassName="w-full"
+                            inputClassName="py-2 text-base"
+                            options={[
+                              { value: "", label: "-- Select Product --" },
+                              ...(productsLoading ? [] : (products?.data || []).map((product: any) => ({
+                                value: product.id,
+                                label: `${product.name} (Stock: ${product.stock || 0})`,
+                              }))),
+                            ]}
+                            error={errors.items?.[index]?.productId?.message}
+                            required
+                            {...selectField}
+                            onChange={(e) => {
+                              selectField.onChange(e);
+                              handleProductChange(index, e.target.value);
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
 
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      label="Quantity"
-                      {...register(`items.${index}.quantity`)}
-                      error={errors.items?.[index]?.quantity?.message}
-                      required
-                    />
-                  </div>
+                    {/* Quantity, Price, Total Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div>
+                        <Input
+                          type="number"
+                          label="Quantity"
+                          layout="stacked"
+                          containerClassName="w-full"
+                          inputClassName="py-2 text-base"
+                          {...register(`items.${index}.quantity`, {
+                            valueAsNumber: false,
+                          })}
+                          error={errors.items?.[index]?.quantity?.message}
+                          required
+                          min="1"
+                          placeholder="0"
+                        />
+                      </div>
 
-                  <div className="col-span-3">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      label="Price"
-                      {...register(`items.${index}.price`)}
-                      error={errors.items?.[index]?.price?.message}
-                      required
-                    />
-                  </div>
+                      <div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          label="Price"
+                          layout="stacked"
+                          containerClassName="w-full"
+                          inputClassName="py-2 text-base min-w-[140px]"
+                          {...register(`items.${index}.price`, {
+                            valueAsNumber: false,
+                          })}
+                          error={errors.items?.[index]?.price?.message}
+                          required
+                          min="0"
+                          placeholder="0.00"
+                        />
+                      </div>
 
-                  <div className="col-span-2 flex items-end">
-                    <div className="w-full">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total</label>
-                      <div className="text-lg font-semibold">
-                        ${((parseFloat(items[index]?.quantity) || 0) * (parseFloat(items[index]?.price) || 0)).toFixed(2)}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Total
+                        </label>
+                        <div className="text-xl font-bold text-gray-900 py-2">
+                          $
+                          {(
+                            (parseFloat(items[index]?.quantity || "0") || 0) *
+                            (parseFloat(items[index]?.price || "0") || 0)
+                          ).toFixed(2)}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            onClick={() => remove(index)}
+                            title="Remove item"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    {fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() => remove(index)}
-                        className="ml-2"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -334,21 +442,56 @@ function AddInvoice() {
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="font-semibold">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (10%):</span>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Tax (%):</span>
+                    <div className="w-28">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        label=""
+                        layout="stacked"
+                        containerClassName="w-full"
+                        inputClassName="py-2 text-sm"
+                        placeholder="0"
+                        {...register("taxRate")}
+                      />
+                    </div>
+                  </div>
                   <span className="font-semibold">${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Total:</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Amount Paid:</span>
-                  <span>$0.00</span>
+                <div className="flex items-center justify-between gap-4 border-t pt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Amount Paid:</span>
+                    <div className="w-32">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        label=""
+                        layout="stacked"
+                        containerClassName="w-full"
+                        inputClassName="py-2 text-sm"
+                        placeholder="0.00"
+                        min="0"
+                        {...register("paidAmount", {
+                          onChange: () => {
+                            manuallyEditedRef.current = true;
+                          },
+                        })}
+                      />
+                    </div>
+                  </div>
+                  <span className="font-semibold text-green-600">${paid.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold text-red-600">
+                <div className={`flex justify-between text-lg font-bold border-t pt-2 ${
+                  balanceDue > 0 ? 'text-red-600' : balanceDue < 0 ? 'text-blue-600' : 'text-green-600'
+                }`}>
                   <span>Balance Due:</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{balanceDue < 0 ? '-' : ''}${Math.abs(balanceDue).toFixed(2)}</span>
                 </div>
               </div>
             </div>

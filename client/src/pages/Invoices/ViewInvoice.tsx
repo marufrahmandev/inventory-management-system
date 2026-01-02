@@ -6,7 +6,7 @@ import { useGetInvoiceByIdQuery } from "../../state/invoices/invoiceSlice";
 
 function ViewInvoice() {
   const { id } = useParams<{ id: string }>();
-  const { data: invoice, isLoading } = useGetInvoiceByIdQuery(id!);
+  const { data: invoiceData, isLoading, isError } = useGetInvoiceByIdQuery(id!);
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -15,17 +15,20 @@ function ViewInvoice() {
 
   useEffect(() => {
     setPageTitle("View Invoice");
-  }, []);
+  }, [setPageTitle]);
 
   const handlePrint = () => {
     window.print();
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading invoice...</div>;
   }
 
-  if (!invoice) {
+  // Handle wrapped response from API
+  const invoice = (invoiceData as any)?.data || invoiceData;
+
+  if (isError || !invoice || !invoice.id) {
     return (
       <div className="text-center py-10">
         <p className="text-red-600">Invoice not found</p>

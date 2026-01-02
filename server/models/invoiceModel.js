@@ -219,6 +219,33 @@ class InvoiceModel {
       return [];
     }
   }
+
+  /**
+   * Generate next invoice number (INV-YYYY-000001 format)
+   */
+  async getNextInvoiceNumber() {
+    const currentYear = new Date().getFullYear();
+    const prefix = `INV-${currentYear}-`;
+
+    const lastInvoice = await Invoice.findOne({
+      where: {
+        invoiceNumber: {
+          [Op.like]: `${prefix}%`,
+        },
+      },
+      order: [["invoiceNumber", "DESC"]],
+      attributes: ["invoiceNumber"],
+    });
+
+    let nextNumber = 1;
+    if (lastInvoice) {
+      const lastNum = parseInt(lastInvoice.invoiceNumber.split("-")[2]);
+      nextNumber = lastNum + 1;
+    }
+
+    const pad6 = (num) => String(num).padStart(6, "0");
+    return `${prefix}${pad6(nextNumber)}`;
+  }
 }
 
 module.exports = new InvoiceModel();

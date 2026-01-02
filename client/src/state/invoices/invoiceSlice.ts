@@ -50,7 +50,7 @@ const metaBaseQuery: BaseQueryFn<
 export const invoicesApiSlice = createApi({
   reducerPath: "invoices",
   baseQuery: metaBaseQuery,
-  tagTypes: ["Invoice"],
+  tagTypes: ["Invoice", "SalesOrder", "Customer"],
   endpoints: (builder) => {
     return {
       getInvoices: builder.query({
@@ -61,9 +61,19 @@ export const invoicesApiSlice = createApi({
         providesTags: (result: any) =>
           providesList(result?.data, "Invoice"),
       }),
+      getNextInvoiceNumber: builder.query({
+        query: () => "/invoices/next-number",
+        providesTags: [{ type: "Invoice", id: "LIST" }],
+      }),
       getInvoiceById: builder.query({
         query: (id: string) => `/invoices/${id}`,
         providesTags: (result, error, id) => [{ type: "Invoice", id }],
+        transformResponse: (response: any) => {
+          if (response.success && response.data) {
+            return response;
+          }
+          return { success: true, data: response };
+        },
       }),
       getInvoicesBySalesOrderId: builder.query({
         query: (salesOrderId: string) =>
@@ -71,13 +81,34 @@ export const invoicesApiSlice = createApi({
         providesTags: (result: any) =>
           providesList(result?.data, "Invoice"),
       }),
+      createInvoiceFromSalesOrder: builder.mutation({
+        query: (salesOrderId: string) => ({
+          url: `/invoices/from-sales-order/${salesOrderId}`,
+          method: "POST",
+          body: {},
+        }),
+        invalidatesTags: (result, error, arg) => [
+          { type: "Invoice", id: "LIST" },
+          { type: "SalesOrder", id: arg },
+        ],
+      }),
       addInvoice: builder.mutation({
         query: (invoiceData) => ({
           url: "/invoices",
           method: "POST",
           body: invoiceData,
         }),
-        invalidatesTags: [{ type: "Invoice", id: "LIST" }],
+        invalidatesTags: (result, error, arg) => {
+          const tags: any[] = [{ type: "Invoice", id: "LIST" }];
+          if (arg?.customerId) {
+            tags.push({ type: "Customer", id: arg.customerId });
+            tags.push({ type: "Customer", id: "LIST" });
+          }
+          if (arg?.salesOrderId) {
+            tags.push({ type: "SalesOrder", id: arg.salesOrderId });
+          }
+          return tags;
+        },
       }),
       updateInvoice: builder.mutation({
         query: ({ id, ...invoiceData }) => ({
@@ -85,10 +116,20 @@ export const invoicesApiSlice = createApi({
           method: "PUT",
           body: invoiceData,
         }),
-        invalidatesTags: (result, error, arg) => [
-          { type: "Invoice", id: arg.id },
-          { type: "Invoice", id: "LIST" },
-        ],
+        invalidatesTags: (result, error, arg) => {
+          const tags: any[] = [
+            { type: "Invoice", id: arg.id },
+            { type: "Invoice", id: "LIST" },
+          ];
+          if (arg?.customerId) {
+            tags.push({ type: "Customer", id: arg.customerId });
+            tags.push({ type: "Customer", id: "LIST" });
+          }
+          if (arg?.salesOrderId) {
+            tags.push({ type: "SalesOrder", id: arg.salesOrderId });
+          }
+          return tags;
+        },
       }),
       deleteInvoice: builder.mutation({
         query: ({ id }) => ({
@@ -106,8 +147,10 @@ export const invoicesApiSlice = createApi({
 
 export const {
   useGetInvoicesQuery,
+  useGetNextInvoiceNumberQuery,
   useGetInvoiceByIdQuery,
   useGetInvoicesBySalesOrderIdQuery,
+  useCreateInvoiceFromSalesOrderMutation,
   useAddInvoiceMutation,
   useUpdateInvoiceMutation,
   useDeleteInvoiceMutation,
