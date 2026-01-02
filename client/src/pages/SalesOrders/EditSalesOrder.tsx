@@ -115,7 +115,6 @@ function EditSalesOrder() {
   }, [salesOrder, reset]);
 
   const selectedCustomerId = watch("customerId");
-  const isCustomerSelected = Boolean(selectedCustomerId && selectedCustomerId.trim());
 
   // Auto-fill customer details when customer is selected
   useEffect(() => {
@@ -280,7 +279,6 @@ function EditSalesOrder() {
                 {...register("customerName")}
                 error={errors.customerName?.message}
                 required
-                readOnly={isCustomerSelected}
               />
 
               <Input
@@ -288,14 +286,12 @@ function EditSalesOrder() {
                 type="email"
                 {...register("customerEmail")}
                 error={errors.customerEmail?.message}
-                readOnly={isCustomerSelected}
               />
 
               <Input
                 label="Customer Phone"
                 {...register("customerPhone")}
                 error={errors.customerPhone?.message}
-                readOnly={isCustomerSelected}
               />
 
               <div className="md:col-span-2">
@@ -304,7 +300,6 @@ function EditSalesOrder() {
                   {...register("customerAddress")}
                   error={errors.customerAddress?.message}
                   rows={2}
-                  readOnly={isCustomerSelected}
                 />
               </div>
             </div>

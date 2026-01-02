@@ -8,7 +8,7 @@ import Button from "../../elements/Button";
 import Input from "../../elements/Input";
 import Textarea from "../../elements/Textarea";
 import Select from "../../elements/Select";
-import { useAddSalesOrderMutation } from "../../state/salesOrders/salesOrderSlice";
+import { useAddSalesOrderMutation, useGetNextSalesOrderNumberQuery } from "../../state/salesOrders/salesOrderSlice";
 import { useGetProductsQuery } from "../../state/products/productSlice";
 import { useGetCustomersQuery } from "../../state/customers/customerSlice";
 import { ToastContainer, toast } from "react-toastify";
@@ -37,6 +37,7 @@ type SalesOrderFormData = z.infer<typeof salesOrderSchema>;
 
 function AddSalesOrder() {
   const [addSalesOrder] = useAddSalesOrderMutation();
+  const { data: nextNumberData } = useGetNextSalesOrderNumberQuery({});
   const { data: productsData } = useGetProductsQuery({});
   const { data: customersData } = useGetCustomersQuery();
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ function AddSalesOrder() {
   } = useForm<SalesOrderFormData>({
     resolver: zodResolver(salesOrderSchema),
     defaultValues: {
-      orderNumber: `SO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      orderNumber: "",
       customerName: "",
       customerEmail: "",
       customerPhone: "",
@@ -81,6 +82,13 @@ function AddSalesOrder() {
   useEffect(() => {
     setPageTitle("Add Sales Order");
   }, [setPageTitle]);
+
+  useEffect(() => {
+    const orderNumber = (nextNumberData as any)?.data?.orderNumber;
+    if (orderNumber) {
+      setValue("orderNumber", orderNumber, { shouldValidate: true });
+    }
+  }, [nextNumberData, setValue]);
 
   const products = productsData?.data || [];
   const customers = customersData?.data || [];

@@ -50,7 +50,7 @@ const metaBaseQuery: BaseQueryFn<
 export const purchaseOrdersApiSlice = createApi({
   reducerPath: "purchaseOrders",
   baseQuery: metaBaseQuery,
-  tagTypes: ["PurchaseOrder"],
+  tagTypes: ["PurchaseOrder", "Supplier"],
   endpoints: (builder) => {
     return {
       getPurchaseOrders: builder.query({
@@ -64,6 +64,13 @@ export const purchaseOrdersApiSlice = createApi({
       getPurchaseOrderById: builder.query({
         query: (id: string) => `/purchase-orders/${id}`,
         providesTags: (result, error, id) => [{ type: "PurchaseOrder", id }],
+        transformResponse: (response: any) => {
+          // Handle both wrapped and unwrapped responses
+          if (response.success && response.data) {
+            return response;
+          }
+          return { success: true, data: response };
+        },
       }),
       addPurchaseOrder: builder.mutation({
         query: (purchaseOrderData) => ({
@@ -71,7 +78,15 @@ export const purchaseOrdersApiSlice = createApi({
           method: "POST",
           body: purchaseOrderData,
         }),
-        invalidatesTags: [{ type: "PurchaseOrder", id: "LIST" }],
+        invalidatesTags: (result, error, arg) => {
+          const tags: any[] = [{ type: "PurchaseOrder", id: "LIST" }];
+          // If supplierId is present, also invalidate supplier cache
+          if (arg?.supplierId) {
+            tags.push({ type: "Supplier", id: arg.supplierId });
+            tags.push({ type: "Supplier", id: "LIST" });
+          }
+          return tags;
+        },
       }),
       updatePurchaseOrder: builder.mutation({
         query: ({ id, ...purchaseOrderData }) => ({
@@ -79,10 +94,18 @@ export const purchaseOrdersApiSlice = createApi({
           method: "PUT",
           body: purchaseOrderData,
         }),
-        invalidatesTags: (result, error, arg) => [
-          { type: "PurchaseOrder", id: arg.id },
-          { type: "PurchaseOrder", id: "LIST" },
-        ],
+        invalidatesTags: (result, error, arg) => {
+          const tags: any[] = [
+            { type: "PurchaseOrder", id: arg.id },
+            { type: "PurchaseOrder", id: "LIST" },
+          ];
+          // If supplierId is present, also invalidate supplier cache
+          if (arg?.supplierId) {
+            tags.push({ type: "Supplier", id: arg.supplierId });
+            tags.push({ type: "Supplier", id: "LIST" });
+          }
+          return tags;
+        },
       }),
       deletePurchaseOrder: builder.mutation({
         query: ({ id }) => ({

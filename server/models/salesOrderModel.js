@@ -2,6 +2,34 @@ const { SalesOrder, SalesOrderItem, Product, Customer } = require("./index");
 const database = require("../config/database");
 const { Op } = require("sequelize");
 
+function pad6(n) {
+  return String(n).padStart(6, "0");
+}
+
+async function getNextOrderNumber(transaction) {
+  const year = new Date().getFullYear();
+  const prefix = `SO-${year}-`;
+
+  // Find the latest orderNumber for the current year and lock the row (prevents race conditions)
+  const latest = await SalesOrder.findOne({
+    where: {
+      orderNumber: { [Op.like]: `${prefix}%` },
+    },
+    order: [["createdAt", "DESC"]],
+    transaction,
+    lock: transaction ? transaction.LOCK.UPDATE : undefined,
+  });
+
+  let next = 1;
+  if (latest?.orderNumber) {
+    const tail = latest.orderNumber.replace(prefix, "");
+    const parsed = parseInt(tail, 10);
+    if (!Number.isNaN(parsed)) next = parsed + 1;
+  }
+
+  return `${prefix}${pad6(next)}`;
+}
+
 /**
  * Sales Order Model using Sequelize ORM
  * Handles sales orders with transactions for data integrity
@@ -80,7 +108,7 @@ class SalesOrderModel {
       return {
         ...data,
         // Keep sales order snapshot fields (customerName/email/phone/address) as-is.
-        // Expose the linked customer (if any) separately.
+        // Expose the linked customer (if any) separately for reference.
         customer: data.Customer || null,
         items: data.items || [],
         Customer: undefined, // Remove nested Customer object
@@ -98,6 +126,11 @@ class SalesOrderModel {
     return await database.transaction(async (t) => {
       try {
         const { items, ...orderData } = salesOrderData;
+
+        // Generate sequential order number if missing/blank
+        if (!orderData.orderNumber || String(orderData.orderNumber).trim() === "") {
+          orderData.orderNumber = await getNextOrderNumber(t);
+        }
         
         // Create the order
         const order = await SalesOrder.create(orderData, { transaction: t });
@@ -123,6 +156,15 @@ class SalesOrderModel {
         console.error("Error creating sales order:", error);
         throw error; // Transaction will rollback
       }
+    });
+  }
+
+  /**
+   * Get next sequential order number for current year
+   */
+  async getNextOrderNumber() {
+    return await database.transaction(async (t) => {
+      return await getNextOrderNumber(t);
     });
   }
 

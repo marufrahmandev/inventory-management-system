@@ -1,7 +1,47 @@
 const salesOrderModel = require("../models/salesOrderModel");
 const productModel = require("../models/productModel");
+const customerModel = require("../models/customerModel");
+
+async function syncCustomerFromOrderBody(req, res) {
+  const { customerId } = req.body;
+  if (!customerId || String(customerId).trim() === "") return true;
+
+  const existingCustomer = await customerModel.getById(customerId);
+  if (!existingCustomer || !existingCustomer.id) {
+    res.status(400).json({ message: "Invalid customerId" });
+    return false;
+  }
+
+  const updateData = {};
+
+  if ("customerName" in req.body) updateData.name = req.body.customerName;
+  if ("customerEmail" in req.body)
+    updateData.email = req.body.customerEmail === "" ? null : req.body.customerEmail;
+  if ("customerPhone" in req.body)
+    updateData.phone = req.body.customerPhone === "" ? null : req.body.customerPhone;
+  if ("customerAddress" in req.body)
+    updateData.address = req.body.customerAddress === "" ? null : req.body.customerAddress;
+
+  if (Object.keys(updateData).length === 0) return true;
+
+  await customerModel.update(customerId, updateData);
+  return true;
+}
 
 class SalesOrderController {
+  async getNextOrderNumber(req, res) {
+    try {
+      const orderNumber = await salesOrderModel.getNextOrderNumber();
+      return res.status(200).json({ success: true, data: { orderNumber } });
+    } catch (error) {
+      console.error("Error generating next sales order number:", error);
+      return res.status(500).json({
+        message: "Error generating next sales order number",
+        error: error.message,
+      });
+    }
+  }
+
   async getAll(req, res) {
     try {
       const { status, startDate, endDate } = req.query;
@@ -52,6 +92,11 @@ class SalesOrderController {
 
   async create(req, res) {
     try {
+      // If a customerId is selected and user edited customer fields in the sales order form,
+      // sync those fields back to the customer master record.
+      const ok = await syncCustomerFromOrderBody(req, res);
+      if (!ok) return;
+
       const {
         orderNumber,
         customerName,
@@ -70,9 +115,9 @@ class SalesOrderController {
       } = req.body;
 
       // Validate required fields
-      if (!orderNumber || !customerName || !items || items.length === 0) {
+      if (!customerName || !items || items.length === 0) {
         return res.status(400).json({
-          message: "Order number, customer name, and items are required",
+          message: "Customer name and items are required",
         });
       }
 
@@ -147,6 +192,10 @@ class SalesOrderController {
         return res.status(404).json({ message: "Sales order not found" });
       }
 
+      // Sync customer master record from sales order form (if customerId present)
+      const ok = await syncCustomerFromOrderBody(req, res);
+      if (!ok) return;
+
       const {
         orderNumber,
         customerId,
@@ -190,7 +239,8 @@ class SalesOrderController {
         orderNumber,
         // Always allow customerId to be updated; treat empty string as null
         customerId: customerId === "" ? null : (customerId ?? null),
-        customerName,
+        // Always update customer snapshot fields from form (not from DB)
+        customerName: customerName || "",
         customerEmail: customerEmail || "",
         customerPhone: customerPhone || "",
         customerAddress: customerAddress || "",

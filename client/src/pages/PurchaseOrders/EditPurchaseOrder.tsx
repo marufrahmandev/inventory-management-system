@@ -2,7 +2,7 @@ import { ArrowLeft, Plus, Trash } from "lucide-react";
 import React, { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 import Button from "../../elements/Button";
 import Input from "../../elements/Input";
@@ -21,12 +21,13 @@ const purchaseOrderSchema = z.object({
   orderNumber: z.string().trim().min(1, { message: "Order number is required" }),
   supplierId: z.string().trim().optional(),
   supplierName: z.string().trim().min(1, { message: "Supplier name is required" }),
-  supplierEmail: z.string().trim().optional(),
+  supplierEmail: z.string().trim().email({ message: "Invalid email" }).optional().or(z.literal("")),
   supplierPhone: z.string().trim().optional(),
   supplierAddress: z.string().trim().optional(),
   orderDate: z.string().trim().min(1, { message: "Order date is required" }),
   expectedDate: z.string().trim().optional(),
   status: z.string().trim().min(1, { message: "Status is required" }),
+  taxRate: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   items: z.array(z.object({
     productId: z.string().trim().min(1, { message: "Product is required" }),
@@ -40,9 +41,9 @@ type PurchaseOrderFormData = z.infer<typeof purchaseOrderSchema>;
 function EditPurchaseOrder() {
   const { id } = useParams<{ id: string }>();
   const [updatePurchaseOrder] = useUpdatePurchaseOrderMutation();
-  const { data: purchaseOrder, isLoading } = useGetPurchaseOrderByIdQuery(id!);
-  const { data: products } = useGetProductsQuery({});
-  const { data: suppliers } = useGetSuppliersQuery();
+  const { data: purchaseOrderData, isLoading, isError } = useGetPurchaseOrderByIdQuery(id!);
+  const { data: productsData } = useGetProductsQuery({});
+  const { data: suppliersData } = useGetSuppliersQuery();
   const navigate = useNavigate();
 
   const { setPageTitle } = useOutletContext<{
@@ -53,6 +54,7 @@ function EditPurchaseOrder() {
     register,
     handleSubmit,
     watch,
+    setValue,
     control,
     reset,
     formState: { errors, isSubmitting },
@@ -65,49 +67,77 @@ function EditPurchaseOrder() {
     name: "items",
   });
 
-  const items = watch("items");
+  const items = watch("items") || [];
+  const taxRate = watch("taxRate");
+  const selectedSupplierId = watch("supplierId");
 
   useEffect(() => {
     setPageTitle("Edit Purchase Order");
-  }, []);
+  }, [setPageTitle]);
+
+  const products = productsData?.data || [];
+  const suppliers = suppliersData?.data || [];
+  const purchaseOrder = (purchaseOrderData as any)?.data || purchaseOrderData;
 
   useEffect(() => {
-    if (purchaseOrder) {
-      const order = purchaseOrder;
+    if (purchaseOrder && purchaseOrder.id) {
+      const initialTaxRate = purchaseOrder.subtotal > 0 ? ((purchaseOrder.tax / purchaseOrder.subtotal) * 100).toFixed(2) : "0";
       reset({
-        orderNumber: order.orderNumber,
-        supplierId: order.supplierId || "",
-        supplierName: order.supplierName,
-        supplierEmail: order.supplierEmail || "",
-        supplierPhone: order.supplierPhone || "",
-        supplierAddress: order.supplierAddress || "",
-        orderDate: order.orderDate ? order.orderDate.split('T')[0] : "",
-        expectedDate: order.expectedDate ? order.expectedDate.split('T')[0] : "",
-        status: order.status,
-        notes: order.notes || "",
-        items: order.items?.map((item: any) => ({
-          productId: item.productId,
-          quantity: item.quantity.toString(),
-          price: item.price.toString(),
-        })) || [],
+        orderNumber: purchaseOrder.orderNumber || "",
+        supplierId: purchaseOrder.supplierId || "",
+        supplierName: purchaseOrder.supplierName || "",
+        supplierEmail: purchaseOrder.supplierEmail || "",
+        supplierPhone: purchaseOrder.supplierPhone || "",
+        supplierAddress: purchaseOrder.supplierAddress || "",
+        orderDate: purchaseOrder.orderDate ? purchaseOrder.orderDate.split('T')[0] : "",
+        expectedDate: purchaseOrder.expectedDate ? purchaseOrder.expectedDate.split('T')[0] : "",
+        status: purchaseOrder.status || "pending",
+        taxRate: initialTaxRate,
+        notes: purchaseOrder.notes || "",
+        items: purchaseOrder.items?.map((item: any) => ({
+          productId: item.productId || "",
+          quantity: item.quantity ? String(item.quantity) : "",
+          price: item.price ? String(item.price) : "",
+        })) || [{ productId: "", quantity: "", price: "" }],
       });
     }
   }, [purchaseOrder, reset]);
 
-  const calculateSubtotal = () => {
-    return items?.reduce((sum, item) => {
-      const quantity = parseFloat(item.quantity) || 0;
-      const price = parseFloat(item.price) || 0;
-      return sum + (quantity * price);
-    }, 0) || 0;
+  // Auto-fill supplier details when supplier is selected
+  useEffect(() => {
+    if (selectedSupplierId && suppliers) {
+      const supplier = suppliers.find((s: any) => s.id === selectedSupplierId);
+      if (supplier) {
+        setValue("supplierName", supplier.name);
+        setValue("supplierEmail", supplier.email || "");
+        setValue("supplierPhone", supplier.phone || "");
+        setValue("supplierAddress", supplier.address || "");
+      }
+    }
+  }, [selectedSupplierId, suppliers, setValue]);
+
+  // Auto-fill price when product is selected
+  const handleProductChange = (index: number, productId: string) => {
+    if (productId && products) {
+      const product = products.find((p: any) => p.id === productId);
+      if (product) {
+        setValue(`items.${index}.price`, (product.cost || product.price).toString());
+      }
+    }
   };
+
+  // Calculate totals reactively
+  const subtotal = items.reduce((sum, item) => {
+    const quantity = parseFloat(item?.quantity || "0") || 0;
+    const price = parseFloat(item?.price || "0") || 0;
+    return sum + (quantity * price);
+  }, 0);
+
+  const calculatedTax = subtotal * (parseFloat(taxRate || "0") / 100);
+  const total = subtotal + calculatedTax;
 
   const onSubmit = async (data: PurchaseOrderFormData) => {
     try {
-      const subtotal = calculateSubtotal();
-      const tax = subtotal * 0.1;
-      const total = subtotal + tax;
-
       const payload = {
         id,
         ...data,
@@ -117,27 +147,40 @@ function EditPurchaseOrder() {
           price: parseFloat(item.price),
         })),
         subtotal,
-        tax,
+        tax: calculatedTax,
         discount: 0,
         total,
+        taxRate: parseFloat(data.taxRate || "0"),
       };
 
-      await updatePurchaseOrder(payload).unwrap();
-      toast.success("Purchase order updated successfully!", toastConfig);
-      setTimeout(() => navigate("/purchase-orders"), 1500);
+      const response = await updatePurchaseOrder(payload);
+      if (!response.error) {
+        toast.success("Purchase order updated successfully!", toastConfig.success);
+        setTimeout(() => navigate("/purchase-orders"), 1500);
+      } else {
+        const errorMsg = (response.error as any)?.data?.message || "Failed to update purchase order";
+        toast.error(errorMsg, toastConfig.error);
+      }
     } catch (error: any) {
       console.error("Failed to update purchase order:", error);
-      toast.error(error?.data?.message || "Failed to update purchase order", toastConfig);
+      toast.error(error?.data?.message || "Failed to update purchase order", toastConfig.error);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading purchase order...</div>;
   }
 
-  const subtotal = calculateSubtotal();
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  if (isError || !purchaseOrder || !purchaseOrder.id) {
+    return <div className="text-center py-10 text-red-600">Purchase order not found</div>;
+  }
+
+  const statusOptions = [
+    { value: "pending", label: "Pending" },
+    { value: "ordered", label: "Ordered" },
+    { value: "received", label: "Received" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
 
   return (
     <div className="max-w-5xl">
@@ -163,19 +206,22 @@ function EditPurchaseOrder() {
               {...register("orderNumber")}
               error={errors.orderNumber?.message}
               required
+              readOnly
             />
 
-            <Select
-              label="Status"
-              {...register("status")}
-              error={errors.status?.message}
-              required
-            >
-              <option value="pending">Pending</option>
-              <option value="ordered">Ordered</option>
-              <option value="received">Received</option>
-              <option value="cancelled">Cancelled</option>
-            </Select>
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Status"
+                  options={statusOptions}
+                  error={errors.status?.message}
+                  required
+                  {...field}
+                />
+              )}
+            />
 
             <Input
               type="date"
@@ -197,6 +243,24 @@ function EditPurchaseOrder() {
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold mb-4">Supplier Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Controller
+                name="supplierId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Select Supplier (Optional)"
+                    options={[
+                      { value: "", label: "-- Select Supplier --" },
+                      ...suppliers.map((supplier: any) => ({
+                        value: supplier.id,
+                        label: supplier.name,
+                      })),
+                    ]}
+                    {...field}
+                  />
+                )}
+              />
+
               <Input
                 label="Supplier Name"
                 {...register("supplierName")}
@@ -244,83 +308,121 @@ function EditPurchaseOrder() {
 
             <div className="space-y-4">
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-12 gap-4 items-start border p-4 rounded">
-                  <div className="col-span-5">
-                    <Select
-                      label="Product"
-                      {...register(`items.${index}.productId`)}
-                      error={errors.items?.[index]?.productId?.message}
-                      required
-                    >
-                      <option value="">-- Select Product --</option>
-                      {products?.data?.map((product: any) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
+                <div key={field.id} className="border p-4 rounded-lg bg-gray-50">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div className="md:col-span-5">
+                      <Controller
+                        name={`items.${index}.productId`}
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            label="Product"
+                            options={[
+                              { value: "", label: "-- Select Product --" },
+                              ...products.map((product: any) => ({
+                                value: product.id,
+                                label: `${product.name} (Stock: ${product.stock || 0})`,
+                              })),
+                            ]}
+                            error={errors.items?.[index]?.productId?.message}
+                            required
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleProductChange(index, e.target.value);
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
 
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      label="Quantity"
-                      {...register(`items.${index}.quantity`)}
-                      error={errors.items?.[index]?.quantity?.message}
-                      required
-                    />
-                  </div>
+                    <div className="md:col-span-2">
+                      <Input
+                        type="number"
+                        label="Quantity"
+                        {...register(`items.${index}.quantity`, {
+                          valueAsNumber: false,
+                        })}
+                        error={errors.items?.[index]?.quantity?.message}
+                        required
+                        min="1"
+                        placeholder="0"
+                        layout="stacked"
+                      />
+                    </div>
 
-                  <div className="col-span-3">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      label="Cost Price"
-                      {...register(`items.${index}.price`)}
-                      error={errors.items?.[index]?.price?.message}
-                      required
-                    />
-                  </div>
+                    <div className="md:col-span-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        label="Cost Price"
+                        {...register(`items.${index}.price`, {
+                          valueAsNumber: false,
+                        })}
+                        error={errors.items?.[index]?.price?.message}
+                        required
+                        min="0"
+                        placeholder="0.00"
+                        layout="stacked"
+                        inputClassName="min-w-[140px] px-3 py-2 text-base"
+                      />
+                    </div>
 
-                  <div className="col-span-2 flex items-end">
-                    <div className="w-full">
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Total</label>
-                      <div className="text-lg font-semibold">
-                        ${((parseFloat(items?.[index]?.quantity) || 0) * (parseFloat(items?.[index]?.price) || 0)).toFixed(2)}
+                      <div className="text-lg font-semibold text-gray-900 py-2">
+                        ${((parseFloat(items[index]?.quantity || "0") || 0) * (parseFloat(items[index]?.price || "0") || 0)).toFixed(2)}
                       </div>
                     </div>
-                    {fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() => remove(index)}
-                        className="ml-2"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    )}
+
+                    <div className="md:col-span-1 flex justify-end">
+                      {fields.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() => remove(index)}
+                          className="mt-6"
+                          title="Remove item"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+            {errors.items && typeof errors.items.message === 'string' && (
+              <p className="text-red-500 text-sm mt-2">{errors.items.message}</p>
+            )}
           </div>
 
           {/* Order Summary */}
           <div className="border-t pt-6">
-            <div className="max-w-md ml-auto">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-semibold">${subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (10%):</span>
-                  <span className="font-semibold">${tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
-                  <span>Total:</span>
-                  <span>${total.toFixed(2)}</span>
-                </div>
+            <div className="max-w-md ml-auto space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Subtotal:</span>
+                <span className="font-semibold">${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <Input
+                  label="Tax (%)"
+                  type="number"
+                  step="0.01"
+                  {...register("taxRate")}
+                  error={errors.taxRate?.message}
+                  min="0"
+                  max="100"
+                  placeholder="0"
+                  layout="inline"
+                  labelClassName="min-w-[100px]"
+                  inputClassName="max-w-[100px] text-right"
+                />
+                <span className="font-semibold">${calculatedTax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold border-t pt-2">
+                <span>Total:</span>
+                <span>${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -355,4 +457,3 @@ function EditPurchaseOrder() {
 }
 
 export default EditPurchaseOrder;
-

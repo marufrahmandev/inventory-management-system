@@ -50,7 +50,7 @@ const metaBaseQuery: BaseQueryFn<
 export const salesOrdersApiSlice = createApi({
   reducerPath: "salesOrders",
   baseQuery: metaBaseQuery,
-  tagTypes: ["SalesOrder"],
+  tagTypes: ["SalesOrder", "Customer"],
   endpoints: (builder) => {
     return {
       getSalesOrders: builder.query({
@@ -60,6 +60,10 @@ export const salesOrdersApiSlice = createApi({
         },
         providesTags: (result: any) =>
           providesList(result?.data, "SalesOrder"),
+      }),
+      getNextSalesOrderNumber: builder.query({
+        query: () => "/sales-orders/next-number",
+        providesTags: [{ type: "SalesOrder", id: "LIST" }],
       }),
       getSalesOrderById: builder.query({
         query: (id: string) => `/sales-orders/${id}`,
@@ -78,7 +82,15 @@ export const salesOrdersApiSlice = createApi({
           method: "POST",
           body: salesOrderData,
         }),
-        invalidatesTags: [{ type: "SalesOrder", id: "LIST" }],
+        invalidatesTags: (result, error, arg) => {
+          const tags: any[] = [{ type: "SalesOrder", id: "LIST" }];
+          // If customerId is present, also invalidate customer cache
+          if (arg?.customerId) {
+            tags.push({ type: "Customer", id: arg.customerId });
+            tags.push({ type: "Customer", id: "LIST" });
+          }
+          return tags;
+        },
       }),
       updateSalesOrder: builder.mutation({
         query: ({ id, ...salesOrderData }) => ({
@@ -86,10 +98,18 @@ export const salesOrdersApiSlice = createApi({
           method: "PUT",
           body: salesOrderData,
         }),
-        invalidatesTags: (result, error, arg) => [
-          { type: "SalesOrder", id: arg.id },
-          { type: "SalesOrder", id: "LIST" },
-        ],
+        invalidatesTags: (result, error, arg) => {
+          const tags: any[] = [
+            { type: "SalesOrder", id: arg.id },
+            { type: "SalesOrder", id: "LIST" },
+          ];
+          // If customerId is present, also invalidate customer cache
+          if (arg?.customerId) {
+            tags.push({ type: "Customer", id: arg.customerId });
+            tags.push({ type: "Customer", id: "LIST" });
+          }
+          return tags;
+        },
       }),
       deleteSalesOrder: builder.mutation({
         query: ({ id }) => ({
@@ -107,6 +127,7 @@ export const salesOrdersApiSlice = createApi({
 
 export const {
   useGetSalesOrdersQuery,
+  useGetNextSalesOrderNumberQuery,
   useGetSalesOrderByIdQuery,
   useAddSalesOrderMutation,
   useUpdateSalesOrderMutation,

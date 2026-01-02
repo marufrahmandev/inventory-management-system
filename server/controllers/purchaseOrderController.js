@@ -1,5 +1,33 @@
 const purchaseOrderModel = require("../models/purchaseOrderModel");
 const productModel = require("../models/productModel");
+const supplierModel = require("../models/supplierModel");
+
+// Helper function to sync supplier master data from purchase order form
+const syncSupplierFromOrderBody = async (req, res) => {
+  const { supplierId, supplierName, supplierEmail, supplierPhone, supplierAddress } = req.body;
+
+  if (supplierId) {
+    try {
+      const updateData = {};
+      if ("supplierName" in req.body) updateData.name = supplierName || null;
+      if ("supplierEmail" in req.body) updateData.email = supplierEmail || null;
+      if ("supplierPhone" in req.body) updateData.phone = supplierPhone || null;
+      if ("supplierAddress" in req.body) updateData.address = supplierAddress || null;
+
+      if (Object.keys(updateData).length > 0) {
+        await supplierModel.update(supplierId, updateData);
+      }
+    } catch (error) {
+      console.error("Error syncing supplier master data:", error);
+      res.status(500).json({
+        message: "Error syncing supplier master data",
+        error: error.message,
+      });
+      return false;
+    }
+  }
+  return true;
+};
 
 class PurchaseOrderController {
   async getAll(req, res) {
@@ -40,7 +68,7 @@ class PurchaseOrderController {
         return res.status(404).json({ message: "Purchase order not found" });
       }
 
-      return res.status(200).json(purchaseOrder);
+      return res.status(200).json({ success: true, data: purchaseOrder });
     } catch (error) {
       console.error("Error fetching purchase order:", error);
       return res.status(500).json({
@@ -54,6 +82,7 @@ class PurchaseOrderController {
     try {
       const {
         orderNumber,
+        supplierId,
         supplierName,
         supplierEmail,
         supplierPhone,
@@ -75,6 +104,10 @@ class PurchaseOrderController {
           message: "Order number, supplier name, and items are required",
         });
       }
+
+      // Sync supplier master record from purchase order form (if supplierId present)
+      const ok = await syncSupplierFromOrderBody(req, res);
+      if (!ok) return;
 
       // Validate products exist and enrich items with product names
       const enrichedItems = [];
@@ -102,20 +135,27 @@ class PurchaseOrderController {
 
       const purchaseOrderData = {
         orderNumber,
-        supplierName,
+        supplierId: supplierId || null,
+        supplierName: supplierName || "",
         supplierEmail: supplierEmail || "",
         supplierPhone: supplierPhone || "",
         supplierAddress: supplierAddress || "",
         orderDate: orderDate || new Date().toISOString(),
         expectedDate: expectedDate || null,
         items: enrichedItems,
-        subtotal: parseFloat(subtotal) || calculatedSubtotal,
-        tax: parseFloat(tax) || 0,
-        discount: parseFloat(discount) || 0,
-        total: parseFloat(total) || calculatedTotal,
         status: status || "pending",
         notes: notes || "",
       };
+
+      // Numeric fields: update based on presence (so 0 works correctly)
+      if ("subtotal" in req.body) purchaseOrderData.subtotal = Number(subtotal) || 0;
+      else purchaseOrderData.subtotal = calculatedSubtotal;
+      
+      if ("tax" in req.body) purchaseOrderData.tax = Number(tax) || 0;
+      if ("discount" in req.body) purchaseOrderData.discount = Number(discount) || 0;
+      
+      if ("total" in req.body) purchaseOrderData.total = Number(total) || 0;
+      else purchaseOrderData.total = calculatedTotal;
 
       const newPurchaseOrder = await purchaseOrderModel.create(purchaseOrderData);
 
@@ -126,7 +166,8 @@ class PurchaseOrderController {
         }
       }
 
-      return res.status(201).json(newPurchaseOrder);
+      const orderData = newPurchaseOrder.toJSON ? newPurchaseOrder.toJSON() : newPurchaseOrder;
+      return res.status(201).json({ success: true, data: orderData });
     } catch (error) {
       console.error("Error creating purchase order:", error);
       return res.status(500).json({
@@ -145,8 +186,13 @@ class PurchaseOrderController {
         return res.status(404).json({ message: "Purchase order not found" });
       }
 
+      // Sync supplier master record from purchase order form (if supplierId present)
+      const ok = await syncSupplierFromOrderBody(req, res);
+      if (!ok) return;
+
       const {
         orderNumber,
+        supplierId,
         supplierName,
         supplierEmail,
         supplierPhone,
@@ -162,45 +208,65 @@ class PurchaseOrderController {
         notes,
       } = req.body;
 
+      // Enrich items with product names if items are provided
+      let enrichedItems = items;
+      if (items && items.length > 0) {
+        enrichedItems = [];
+        for (const item of items) {
+          const product = await productModel.getById(item.productId);
+          if (!product || !product.id) {
+            return res.status(400).json({
+              message: `Product with ID ${item.productId} not found`,
+            });
+          }
+          enrichedItems.push({
+            productId: item.productId,
+            productName: product.name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.price * item.quantity,
+          });
+        }
+      }
+
       const purchaseOrderData = {
         orderNumber,
-        supplierName,
-        supplierEmail,
-        supplierPhone,
-        supplierAddress,
+        supplierId: supplierId === "" ? null : (supplierId ?? null),
+        supplierName: supplierName || "",
+        supplierEmail: supplierEmail || "",
+        supplierPhone: supplierPhone || "",
+        supplierAddress: supplierAddress || "",
         orderDate,
-        expectedDate,
-        items,
-        subtotal: subtotal ? parseFloat(subtotal) : undefined,
-        tax: tax ? parseFloat(tax) : undefined,
-        discount: discount ? parseFloat(discount) : undefined,
-        total: total ? parseFloat(total) : undefined,
+        expectedDate: expectedDate || null,
+        items: enrichedItems,
         status,
-        notes,
+        notes: notes || "",
       };
 
-      // Remove undefined values
-      Object.keys(purchaseOrderData).forEach(
-        (key) => purchaseOrderData[key] === undefined && delete purchaseOrderData[key]
-      );
+      // Numeric fields: update based on presence (so 0 works correctly)
+      if ("subtotal" in req.body) purchaseOrderData.subtotal = Number(subtotal) || 0;
+      if ("tax" in req.body) purchaseOrderData.tax = Number(tax) || 0;
+      if ("discount" in req.body) purchaseOrderData.discount = Number(discount) || 0;
+      if ("total" in req.body) purchaseOrderData.total = Number(total) || 0;
 
       // Handle stock updates if status changes
       if (status && status !== existingPurchaseOrder.status) {
         if (status === "received") {
           // Add stock
           for (const item of existingPurchaseOrder.items) {
-            productModel.updateStock(item.productId, item.quantity);
+            await productModel.updateStock(item.productId, item.quantity);
           }
         } else if (status === "cancelled" && existingPurchaseOrder.status === "received") {
           // Remove stock
           for (const item of existingPurchaseOrder.items) {
-            productModel.updateStock(item.productId, -item.quantity);
+            await productModel.updateStock(item.productId, -item.quantity);
           }
         }
       }
 
       const updatedPurchaseOrder = await purchaseOrderModel.update(id, purchaseOrderData);
-      return res.status(200).json(updatedPurchaseOrder);
+      const orderData = updatedPurchaseOrder.toJSON ? updatedPurchaseOrder.toJSON() : updatedPurchaseOrder;
+      return res.status(200).json({ success: true, data: orderData });
     } catch (error) {
       console.error("Error updating purchase order:", error);
       return res.status(500).json({

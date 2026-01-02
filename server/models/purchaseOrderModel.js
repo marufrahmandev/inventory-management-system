@@ -1,4 +1,4 @@
-const { PurchaseOrder, PurchaseOrderItem, Product } = require("./index");
+const { PurchaseOrder, PurchaseOrderItem, Product, Supplier } = require("./index");
 const database = require("../config/database");
 const { Op } = require("sequelize");
 
@@ -13,14 +13,21 @@ class PurchaseOrderModel {
   async getAll() {
     try {
       const orders = await PurchaseOrder.findAll({
-        include: [{
-          model: PurchaseOrderItem,
-          as: "items",
-          include: [{
-            model: Product,
-            attributes: ["id", "name", "sku"],
-          }],
-        }],
+        include: [
+          {
+            model: Supplier,
+            attributes: ["id", "name", "email", "phone"],
+            required: false,
+          },
+          {
+            model: PurchaseOrderItem,
+            as: "items",
+            include: [{
+              model: Product,
+              attributes: ["id", "name", "sku"],
+            }],
+          },
+        ],
         order: [["orderDate", "DESC"]],
       });
       
@@ -28,7 +35,9 @@ class PurchaseOrderModel {
         const data = order.toJSON();
         return {
           ...data,
+          supplier: data.Supplier || null, // Expose the linked supplier separately
           items: data.items || [],
+          Supplier: undefined, // Remove nested Supplier object
         };
       });
     } catch (error) {
@@ -43,28 +52,37 @@ class PurchaseOrderModel {
   async getById(id) {
     try {
       const order = await PurchaseOrder.findByPk(id, {
-        include: [{
-          model: PurchaseOrderItem,
-          as: "items",
-          include: [{
-            model: Product,
-            attributes: ["id", "name", "sku"],
-          }],
-        }],
+        include: [
+          {
+            model: Supplier,
+            attributes: ["id", "name", "email", "phone", "address"],
+            required: false,
+          },
+          {
+            model: PurchaseOrderItem,
+            as: "items",
+            include: [{
+              model: Product,
+              attributes: ["id", "name", "sku"],
+            }],
+          },
+        ],
       });
       
       if (!order) {
-        return { success: false, message: "Purchase order not found" };
+        return null;
       }
       
       const data = order.toJSON();
       return {
         ...data,
+        supplier: data.Supplier || null, // Expose the linked supplier separately
         items: data.items || [],
+        Supplier: undefined, // Remove nested Supplier object
       };
     } catch (error) {
       console.error("Error getting purchase order by ID:", error);
-      return { success: false, message: "Error reading purchase order" };
+      return null;
     }
   }
 
