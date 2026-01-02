@@ -77,7 +77,7 @@ export const productsApiSlice = createApi({
       }),
       updateProduct: builder.mutation({
         query: ({ id, ...productData }) => ({
-          url: `/api/products/${id}`,
+          url: `/products/${id}`,
           method: "PUT",
           body: productData,
         }),
@@ -88,7 +88,7 @@ export const productsApiSlice = createApi({
       }),
       deleteProduct: builder.mutation({
         query: ({ id }) => ({
-          url: `/api/products/${id}`,
+          url: `/products/${id}`,
           method: "DELETE",
         }),
         invalidatesTags: (result, error, arg) => [

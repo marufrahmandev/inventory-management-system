@@ -55,6 +55,14 @@ function Categories() {
       size: 500,
     },
     {
+      accessorKey: "parent_category_name",
+      header: "Parent Category",
+      cell: (row) => row.getValue() || "N/A",
+      enableColumnFilter: false,
+      filterFn: "includesString",
+      size: 150,
+    },
+    {
       accessorKey: "optimizedImageUrl",
       header: "Image",
       cell: (row) =>

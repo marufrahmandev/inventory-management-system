@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import React, { useEffect, useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
@@ -14,7 +14,7 @@ import {
   useUpdateCategoryMutation,
   useGetCategoriesQuery,
 } from "../../state/categories/categorySlice";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import { toastConfig } from "../../configs/toast";
 
 const baseSchema = z
@@ -74,33 +74,55 @@ function EditCategory() {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isValid, isSubmitting },
+    watch,
+    trigger,
+    formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      category_name: category?.name || "",
-      category_description: category?.description || "",
-      parent_category: category?.parent_category || "",
+      category_name: "",
+      category_description: "",
+      parent_category: "",
       category_image: null,
-      optimizedImageUrl: category?.optimizedImageUrl || "",
+      optimizedImageUrl: "",
     },
     mode: "all",
     criteriaMode: "all",
-    resolver: async (data: any, context: any, options: any) => {
-      return zodResolver(baseSchema)(data, context, options);
-    },
+    resolver: zodResolver(baseSchema),
   });
+
+  // Watch form values to check if form is ready to submit
+  const categoryName = watch("category_name");
+  const categoryDescription = watch("category_description");
+  const optimizedImageUrl = watch("optimizedImageUrl");
+  const categoryImage = watch("category_image");
+  
+  // Check if form can be submitted
+  const canSubmit = 
+    categoryName && 
+    categoryName.trim().length >= 2 && 
+    categoryDescription && 
+    categoryDescription.trim().length >= 2 && 
+    (categoryImage || optimizedImageUrl);
 
   useEffect(() => {
     if (category) {
+      const categoryData = category.data || category; // Handle both wrapped and unwrapped responses
       reset({
-        category_name: category.name,
-        category_description: category.description,
-        parent_category: category.parent_category,
+        category_name: categoryData.name || "",
+        category_description: categoryData.description || "",
+        parent_category: categoryData.parent_category || "",
         category_image: null,
-        optimizedImageUrl: category.optimizedImageUrl,
+        optimizedImageUrl: categoryData.optimizedImageUrl || categoryData.imageUrl || categoryData.category_image_url || "",
+      }, {
+        keepDefaultValues: false
       });
+      
+      // Trigger validation after reset to update isValid
+      setTimeout(() => {
+        trigger();
+      }, 100);
     }
-  }, [category, reset]);
+  }, [category, reset, trigger]);
 
   const navigate = useNavigate();
 
@@ -195,7 +217,7 @@ function EditCategory() {
               accept="image/*"
               label="Category Image"
               {...register("category_image")}
-              imageUrl={category?.optimizedImageUrl || ""}
+              imageUrl={optimizedImageUrl || category?.optimizedImageUrl || category?.imageUrl || category?.category_image_url || ""}
               required
               error={errors.category_image?.message as string}
             />
@@ -204,7 +226,7 @@ function EditCategory() {
             <Button
               type="submit"
               className="mt-4 min-w-[150px]"
-              disabled={isFormsubmitting || isSubmitting || !isValid}
+              disabled={isFormsubmitting || isSubmitting || !canSubmit}
             >
               {isFormsubmitting || isSubmitting ? "Submitting..." : "Submit"}
             </Button>

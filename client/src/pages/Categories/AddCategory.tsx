@@ -125,8 +125,6 @@ function AddCategory() {
       return toast.error(errorMsg, toastConfig.error);
     }
   };
-  // console.log(watch("category_image"));
-  console.log(watch("gender"));
 
   return (
     <div>

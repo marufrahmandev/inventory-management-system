@@ -1,8 +1,8 @@
 import { ArrowLeft } from "lucide-react";
-import React, { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 import Button from "../../elements/Button";
 import Input from "../../elements/Input";
@@ -13,7 +13,7 @@ import {
   useUpdateProductMutation,
 } from "../../state/products/productSlice";
 import { useGetCategoriesQuery } from "../../state/categories/categorySlice";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import { toastConfig } from "../../configs/toast";
 
 const productSchema = z.object({
@@ -38,9 +38,10 @@ type ProductFormData = z.infer<typeof productSchema>;
 function EditProduct() {
   const { id } = useParams<{ id: string }>();
   const [updateProduct] = useUpdateProductMutation();
-  const { data: categories = [] } = useGetCategoriesQuery({});
+  const { data: categoriesData } = useGetCategoriesQuery({});
   const { data: product, isLoading, isError } = useGetProductByIdQuery(id!);
   const navigate = useNavigate();
+  const [isFormsubmitting, setIsFormsubmitting] = useState(false);
 
   const { setPageTitle } = useOutletContext<{
     setPageTitle: (title: string) => void;
@@ -50,198 +51,233 @@ function EditProduct() {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    control,
+    formState: { errors, isSubmitting, isValid },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
-    mode: "onChange",
+    mode: "all",
+    criteriaMode: "all",
+    defaultValues: {
+      name: "",
+      categoryId: "",
+      sku: "",
+      description: "",
+      price: "",
+      cost: "",
+      stock: "",
+      minStock: "",
+      unit: "pcs",
+      barcode: "",
+    },
   });
 
   useEffect(() => {
     if (product) {
+      const productData = product.data || product; // Handle both wrapped and unwrapped responses
       reset({
-        name: product.name || "",
-        categoryId: product.categoryId || "",
-        sku: product.sku || "",
-        description: product.description || "",
-        price: String(product.price || 0),
-        cost: String(product.cost || 0),
-        stock: String(product.stock || 0),
-        minStock: String(product.minStock || 0),
-        unit: product.unit || "pcs",
-        barcode: product.barcode || "",
+        name: productData.name || "",
+        categoryId: productData.categoryId || productData.category?.id || "",
+        sku: productData.sku || "",
+        description: productData.description || "",
+        price: productData.price ? String(productData.price) : "",
+        cost: productData.cost ? String(productData.cost) : "",
+        stock: productData.stock ? String(productData.stock) : "",
+        minStock: productData.minStock ? String(productData.minStock) : "",
+        unit: productData.unit || "pcs",
+        barcode: productData.barcode || "",
       });
     }
   }, [product, reset]);
 
   const onSubmit = async (data: ProductFormData) => {
+    setIsFormsubmitting(true);
+    
     try {
       const productData = {
         id: id!,
         name: data.name,
         categoryId: data.categoryId,
-        sku: data.sku,
-        description: data.description,
-        price: parseFloat(data.price),
-        cost: parseFloat(data.cost || "0"),
-        stock: parseInt(data.stock),
-        minStock: parseInt(data.minStock || "0"),
+        sku: data.sku || "",
+        description: data.description || "",
+        price: parseFloat(data.price) || 0,
+        cost: parseFloat(data.cost) || 0,
+        stock: parseInt(data.stock) || 0,
+        minStock: parseInt(data.minStock) || 0,
         unit: data.unit || "pcs",
-        barcode: data.barcode,
+        barcode: data.barcode || "",
       };
 
-      const response = await updateProduct(productData);
+      console.log("Submitting product update:", productData);
 
-      if (response.error) {
-        toast.error("Error updating product", toastConfig.error);
-      } else {
+      const response = await updateProduct(productData);
+      console.log("Update response:", response);
+
+      if (!response.error) {
         toast.success("Product updated successfully", toastConfig.success);
         setTimeout(() => {
+          setIsFormsubmitting(false);
           navigate("/products");
-        }, 1000);
+        }, 1500);
+      } else {
+        setIsFormsubmitting(false);
+        const errorMsg = (response.error as any)?.data?.message || (response.error as any)?.message || "Error updating product";
+        console.error("Update error:", response.error);
+        toast.error(errorMsg, toastConfig.error);
       }
     } catch (error) {
       console.error("Error updating product:", error);
+      setIsFormsubmitting(false);
       toast.error("Error updating product", toastConfig.error);
     }
   };
 
   useEffect(() => {
     setPageTitle("Edit Product");
-  }, []);
+  }, [setPageTitle]);
+
+  // Debug: Log product data
+  useEffect(() => {
+    if (product) {
+      console.log("Product data loaded:", product);
+    }
+  }, [product]);
 
   if (isLoading) {
     return <div className="text-center py-8">Loading product...</div>;
   }
 
   if (isError || !product) {
+    console.error("Product loading error:", isError, product);
     return <div className="text-center py-8 text-red-600">Product not found</div>;
   }
 
-  const categoryOptions = categories.map((cat) => ({
+  // Extract categories array from API response
+  const categories = categoriesData?.data || [];
+  const categoryOptions = categories.map((cat: any) => ({
     value: cat.id,
     label: cat.name,
   }));
 
   return (
     <div>
-      <div className="form_container">
-        <div className="form_header">
-          <button
-            type="button"
-            className="back_btn"
-            onClick={() => navigate("/products")}
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h2 className="form_title">Edit Product</h2>
-        </div>
+      <div className="flex justify-end gap-2 action_container">
+        <Button onClick={() => navigate("/products")}>
+          <ArrowLeft className="w-6 h-6" />
+          Back
+        </Button>
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="form">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="mt-6 p-5">
+        <form
+          action="#"
+          method="POST"
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-10"
+        >
+          <div className="flex flex-col gap-2 space-y-4">
             <Input
               label="Product Name"
-              name="name"
-              register={register}
-              errors={errors}
-              placeholder="Enter product name"
               required
+              error={errors.name?.message as string}
+              {...register("name")}
             />
-
+            
             <Input
               label="SKU"
-              name="sku"
-              register={register}
-              errors={errors}
-              placeholder="Enter SKU"
+              error={errors.sku?.message as string}
+              {...register("sku")}
             />
 
-            <Select
-              label="Category"
+            <Controller
               name="categoryId"
-              register={register}
-              errors={errors}
-              options={categoryOptions}
-              required
+              control={control}
+              rules={{ required: "Required" }}
+              render={({ field }) => (
+                <Select
+                  label="Category"
+                  required
+                  error={errors.categoryId?.message as string}
+                  options={categoryOptions}
+                  {...field}
+                />
+              )}
             />
 
             <Input
               label="Unit"
-              name="unit"
-              register={register}
-              errors={errors}
+              error={errors.unit?.message as string}
               placeholder="e.g., pcs, kg, ltr"
+              {...register("unit")}
             />
 
             <Input
               label="Price"
-              name="price"
               type="number"
               step="0.01"
-              register={register}
-              errors={errors}
-              placeholder="Enter selling price"
               required
+              error={errors.price?.message as string}
+              placeholder="Enter selling price"
+              {...register("price")}
             />
 
             <Input
               label="Cost"
-              name="cost"
               type="number"
               step="0.01"
-              register={register}
-              errors={errors}
+              error={errors.cost?.message as string}
               placeholder="Enter cost price"
+              {...register("cost")}
             />
 
             <Input
               label="Stock Quantity"
-              name="stock"
               type="number"
-              register={register}
-              errors={errors}
-              placeholder="Enter stock quantity"
               required
+              error={errors.stock?.message as string}
+              placeholder="Enter stock quantity"
+              {...register("stock")}
             />
 
             <Input
               label="Min Stock Level"
-              name="minStock"
               type="number"
-              register={register}
-              errors={errors}
+              error={errors.minStock?.message as string}
               placeholder="Minimum stock level"
+              {...register("minStock")}
             />
 
             <Input
               label="Barcode"
-              name="barcode"
-              register={register}
-              errors={errors}
+              error={errors.barcode?.message as string}
               placeholder="Enter barcode"
+              {...register("barcode")}
             />
-          </div>
 
-          <div className="mt-6">
             <Textarea
               label="Description"
-              name="description"
-              register={register}
-              errors={errors}
-              placeholder="Enter product description"
-              rows={4}
+              labelClassName="text-gray-900"
+              inputClassName="text-gray-900"
+              rows={5}
+              error={errors.description?.message as string}
+              {...register("description")}
             />
           </div>
-
-          <div className="form_actions">
+          
+          <div className="flex justify-start gap-5 sm:max-w-[80%]">
+            <Button
+              type="submit"
+              className="mt-4 min-w-[150px]"
+              disabled={isFormsubmitting || isSubmitting || !isValid}
+            >
+              {isFormsubmitting || isSubmitting ? "Updating..." : "Update"}
+            </Button>
             <Button
               type="button"
-              variant="secondary"
+              className="mt-4 min-w-[150px] bg-gray-500 text-white"
+              disabled={isFormsubmitting || isSubmitting}
               onClick={() => navigate("/products")}
             >
               Cancel
-            </Button>
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? "Updating..." : "Update Product"}
             </Button>
           </div>
         </form>
@@ -252,4 +288,3 @@ function EditProduct() {
 }
 
 export default EditProduct;
-

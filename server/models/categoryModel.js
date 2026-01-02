@@ -12,10 +12,24 @@ class CategoryModel {
   async getAll() {
     try {
       const categories = await Category.findAll({
+        include: [{
+          model: Category,
+          as: "parent",
+          attributes: ["id", "name"], // Only include id and name of parent
+          required: false, // LEFT JOIN - include categories even without parent
+        }],
         order: [["createdAt", "DESC"]],
-        raw: true, // Return plain objects instead of Sequelize instances
       });
-      return categories;
+      
+      // Convert to plain objects and add parent_category_name
+      return categories.map(category => {
+        const categoryData = category.get({ plain: true });
+        const { parent, ...rest } = categoryData; // Remove nested parent object
+        return {
+          ...rest,
+          parent_category_name: parent ? parent.name : null,
+        };
+      });
     } catch (error) {
       console.error("Error getting all categories:", error);
       return [];
